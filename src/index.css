@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pte-firebrick: #E32032;
+  --color-pte-firebrick-dark: #C71828;
+  --color-aus-green: #00C951;
+  --color-aus-green-dark: #0A7135;
+  --color-aus-yellow: #FFCC05;
+  --color-charcoal: #171717;
+  --color-pte-grey: #666666;
+  --color-subtle: #646973;
+  --color-cloud-white: #F2F2F2;
+  --color-line: #E3E4E6;
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root {
+  font-family: var(--font-inter);
+  color: var(--color-charcoal);
+  background-color: var(--color-cloud-white);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--color-cloud-white);
+  color: var(--color-charcoal);
+}
+
+/* Eliminate browser neon/cyan click flashes, tap highlights, and default focus rings */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+*:focus,
+*:focus-visible {
+  outline: none !important;
+}
+
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
