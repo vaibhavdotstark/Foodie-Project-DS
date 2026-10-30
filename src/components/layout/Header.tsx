@@ -110,24 +110,24 @@ export const Header: React.FC = () => {
     <header className="h-16 bg-white border-b border-[#E3E4E6] px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs select-none gap-2 sm:gap-4">
       {/* Brand & Workspace Indicator */}
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 shrink-0 min-w-0">
-        {user?.role === 'OEM_MANAGER' ? (
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <FoodieLogo size="md" showEndorsement={true} />
-            <div className="h-6 w-px bg-[#E3E4E6] hidden lg:block" />
-            <div className="hidden lg:flex flex-col">
-              <span className="text-[10px] text-[#888888] font-bold uppercase leading-tight">
-                Workspace
-              </span>
-              <span className="text-xs font-extrabold text-[#171717] leading-tight">
-                OEM Asset Manager
-              </span>
-            </div>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <FoodieLogo size="md" showEndorsement={true} />
+          <div className="h-6 w-px bg-[#E3E4E6] hidden lg:block" />
+          <div className="hidden lg:flex flex-col">
+            <span className="text-[10px] text-[#888888] font-bold uppercase leading-tight">
+              {user?.role === 'OEM_MANAGER' ? 'Workspace' : 'Client Workspace'}
+            </span>
+            <span className="text-xs font-extrabold text-[#171717] leading-tight truncate max-w-[240px]">
+              {user?.role === 'OEM_MANAGER'
+                ? 'OEM Asset Manager'
+                : (user?.company_name || 'Client Workspace')}
+            </span>
           </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E3E4E6] px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#171717] shrink-0">
-            <span className="w-2 h-2 rounded-full bg-[#00C951] shrink-0" />
-            <span className="text-[#666666] font-normal hidden sm:inline">Client:</span>
-            <span className="font-bold text-[#171717] truncate max-w-[140px] sm:max-w-[200px]">Green Valley Foods Pty Ltd</span>
+        </div>
+        {user?.role !== 'OEM_MANAGER' && user?.company_name && (
+          <div className="lg:hidden flex items-center gap-1.5 bg-[#F8F9FA] border border-[#E3E4E6] px-2 py-1 rounded-full text-[11px] font-semibold text-[#171717] shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00C951] shrink-0" />
+            <span className="truncate max-w-[120px] font-bold">{user.company_name}</span>
           </div>
         )}
       </div>
@@ -365,7 +365,7 @@ export const Header: React.FC = () => {
                 OPERATOR: 'Operator',
               };
               const displayRole = user ? roleTitleMap[user.role] : 'Operator';
-              const displayCompany = user?.role === 'OEM_MANAGER' ? 'PowerTech Energy' : 'Green Valley Foods Pty Ltd';
+              const displayCompany = user?.role === 'OEM_MANAGER' ? 'PowerTech Energy' : (user?.company_name || 'Client Workspace');
               const displayRoleCompany = `${displayRole} · ${displayCompany}`;
 
               return (

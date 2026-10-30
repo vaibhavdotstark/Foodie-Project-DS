@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status, Depends
 from ..database import get_db_cursor
 from ..schemas import OrganizationCreate, OrganizationUpdate, OrganizationResponse, BulkDeleteRequest
-from ..auth import get_current_user
+from ..auth import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"], dependencies=[Depends(get_current_user)])
 
@@ -135,6 +135,42 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
             d["deleted_by"] = str(d["deleted_by"])
         if d.get("onboarding_date"):
             d["onboarding_date"] = str(d["onboarding_date"])
+
+        # Automatically create or link client login user account with default password '12345'
+        if payload.email and payload.email.strip():
+            clean_email = payload.email.strip().lower()
+            cur.execute("SELECT id FROM users WHERE LOWER(email) = %s;", (clean_email,))
+            existing_user = cur.fetchone()
+            pw_hash = get_password_hash("12345")
+            poc_name = (payload.contact_poc or payload.company_name or "Client Admin").strip()
+            name_parts = poc_name.split(maxsplit=1)
+            first_name = name_parts[0]
+            last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+            if existing_user:
+                cur.execute("""
+                    UPDATE users
+                    SET organization_id = %s,
+                        password_hash = %s,
+                        role = 'SITE_ADMIN',
+                        is_active = TRUE
+                    WHERE id = %s;
+                """, (new_org_id, pw_hash, existing_user[0]))
+            else:
+                cur.execute("""
+                    INSERT INTO users (
+                        organization_id, email, password_hash, first_name, last_name, role, phone_number, is_active
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, 'SITE_ADMIN', %s, TRUE
+                    );
+                """, (
+                    new_org_id,
+                    clean_email,
+                    pw_hash,
+                    first_name,
+                    last_name,
+                    payload.phone_number.strip() if payload.phone_number else None
+                ))
 
         # Assign machines and create leases if specified in payload
         if payload.assigned_machines:

@@ -95,6 +95,8 @@ export interface User {
   role: UserRole;
   phone_number?: string;
   is_active: boolean;
+  company_name?: string | null;
+  client_code?: string | null;
   last_login_at?: string | null;
   created_at: string;
   updated_at: string;

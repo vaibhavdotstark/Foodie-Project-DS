@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   Search,
   Plus,
@@ -30,8 +31,13 @@ import { Toast } from '../components/common/Toast';
 import type { Organization, Machine, User } from '../types';
 
 export const ClientsPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedClientIdFromUrl = searchParams.get('select');
+
+  if (user && user.role !== 'OEM_MANAGER') {
+    return <Navigate to="/" replace />;
+  }
 
   // Live Data States
   const [organizations, setOrganizations] = useState<Organization[]>([]);

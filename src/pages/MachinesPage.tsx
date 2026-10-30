@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { machinesApi, orgsApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { AddMachineDrawer } from '../components/machines/AddMachineDrawer';
 import { MachineDetailDrawer } from '../components/machines/MachineDetailDrawer';
 import { EditMachineDrawer } from '../components/machines/EditMachineDrawer';
@@ -25,6 +26,8 @@ import { Toast } from '../components/common/Toast';
 import type { Machine, Organization } from '../types';
 
 export const MachinesPage: React.FC = () => {
+  const { user } = useAuth();
+  const isOem = user?.role === 'OEM_MANAGER';
   const [searchParams] = useSearchParams();
 
   // Live PostgreSQL Data States
@@ -250,24 +253,28 @@ export const MachinesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#171717] tracking-tight">
-            All machines
+            {isOem ? 'All machines' : 'My machines'}
           </h1>
           <p className="text-xs text-[#888888] mt-0.5">
-            Every Foodie machine across all clients.
+            {isOem
+              ? 'Every Foodie machine across all clients.'
+              : `Commercial composter units assigned to ${user?.company_name || 'your facility'}.`}
           </p>
         </div>
 
-        {/* Action Button: + Add machine */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setIsAddMachineOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white transition-all cursor-pointer shadow-2xs"
-          >
-            <Plus className="w-3.5 h-3.5 text-white" />
-            <span>Add machine</span>
-          </button>
-        </div>
+        {/* Action Button: + Add machine (OEM only) */}
+        {isOem && (
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsAddMachineOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white transition-all cursor-pointer shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5 text-white" />
+              <span>Add machine</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 2. Top Metric Status Summary Cards */}
@@ -364,25 +371,27 @@ export const MachinesPage: React.FC = () => {
               </select>
             </div>
 
-            {/* Client Dropdown */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[#6B7280] font-medium text-[11px]">Client</span>
-              <select
-                value={clientFilter}
-                onChange={(e) => {
-                  setClientFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[#171717] font-semibold text-xs cursor-pointer focus:outline-none focus:border-[#171717] max-w-[180px] truncate"
-              >
-                <option value="All clients">All clients</option>
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.company_name}>
-                    {org.company_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Client Dropdown (OEM only) */}
+            {isOem && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[#6B7280] font-medium text-[11px]">Client</span>
+                <select
+                  value={clientFilter}
+                  onChange={(e) => {
+                    setClientFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[#171717] font-semibold text-xs cursor-pointer focus:outline-none focus:border-[#171717] max-w-[180px] truncate"
+                >
+                  <option value="All clients">All clients</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.company_name}>
+                      {org.company_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Location Dropdown (Site / Location wise) */}
             <div className="flex items-center gap-1.5">
@@ -626,31 +635,35 @@ export const MachinesPage: React.FC = () => {
                                 <span>View details</span>
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingMachine(m);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-2 text-left text-xs font-medium text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-2 cursor-pointer"
-                              >
-                                <Edit2 className="w-3.5 h-3.5 text-[#6B7280]" />
-                                <span>Edit machine</span>
-                              </button>
+                              {isOem && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingMachine(m);
+                                      setActiveMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-xs font-medium text-[#171717] hover:bg-[#F9FAFB] flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5 text-[#6B7280]" />
+                                    <span>Edit machine</span>
+                                  </button>
 
-                              <div className="border-t border-[#F3F4F6] my-1" />
+                                  <div className="border-t border-[#F3F4F6] my-1" />
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDeletingMachine(m);
-                                  setActiveMenuId(null);
-                                }}
-                                className="w-full px-3 py-2 text-left text-xs font-medium text-[#E32032] hover:bg-red-50 flex items-center gap-2 cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
-                                <span>Delete machine</span>
-                              </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDeletingMachine(m);
+                                      setActiveMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-xs font-medium text-[#E32032] hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
+                                    <span>Delete machine</span>
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>

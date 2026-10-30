@@ -74,6 +74,16 @@ def login(payload: LoginRequest):
         # Update last_login_at
         cur.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = %s;", (user_dict["id"],))
 
+        # Fetch client organization details if user is linked to a client
+        user_dict["company_name"] = None
+        user_dict["client_code"] = None
+        if user_dict.get("organization_id"):
+            cur.execute("SELECT company_name, client_code FROM organizations WHERE id = %s;", (user_dict["organization_id"],))
+            org_row = cur.fetchone()
+            if org_row:
+                user_dict["company_name"] = org_row[0]
+                user_dict["client_code"] = org_row[1]
+
         # Generate JWT token
         token_data = {
             "id": str(user_dict["id"]),
@@ -82,6 +92,8 @@ def login(payload: LoginRequest):
             "first_name": user_dict["first_name"],
             "last_name": user_dict["last_name"],
             "organization_id": str(user_dict["organization_id"]) if user_dict.get("organization_id") else None,
+            "company_name": user_dict.get("company_name"),
+            "client_code": user_dict.get("client_code"),
             "assigned_site_id": None,
         }
         token = create_access_token(token_data)
@@ -98,8 +110,16 @@ def login(payload: LoginRequest):
 def get_me(current_user: dict = Depends(get_current_user)):
     user_dict = current_user.copy()
     user_dict["id"] = str(user_dict["id"])
+    user_dict["company_name"] = None
+    user_dict["client_code"] = None
     if user_dict.get("organization_id"):
         user_dict["organization_id"] = str(user_dict["organization_id"])
+        with get_db_cursor() as cur:
+            cur.execute("SELECT company_name, client_code FROM organizations WHERE id = %s;", (user_dict["organization_id"],))
+            org_row = cur.fetchone()
+            if org_row:
+                user_dict["company_name"] = org_row[0]
+                user_dict["client_code"] = org_row[1]
     return UserResponse(**user_dict)
 
 @router.post("/forgot-password")

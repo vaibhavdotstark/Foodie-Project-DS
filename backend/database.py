@@ -6,6 +6,8 @@ from psycopg2.pool import SimpleConnectionPool
 import bcrypt
 
 load_dotenv()
+if not os.getenv("DB_PASSWORD"):
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))

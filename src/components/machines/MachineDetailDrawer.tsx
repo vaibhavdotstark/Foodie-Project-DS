@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
 import { X, Cpu, MapPin, Wrench, Edit2, Trash2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import type { Machine } from '../../types';
 
 export interface MachineDetailDrawerProps {
   isOpen: boolean;
   machine: Machine | null;
   onClose: () => void;
-  onEdit: (machine: Machine) => void;
-  onDelete: (machine: Machine) => void;
+  onEdit?: (machine: Machine) => void;
+  onDelete?: (machine: Machine) => void;
 }
 
 export const MachineDetailDrawer: React.FC<MachineDetailDrawerProps> = ({
@@ -39,6 +40,9 @@ export const MachineDetailDrawer: React.FC<MachineDetailDrawerProps> = ({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  const { user } = useAuth();
+  const isOem = user?.role === 'OEM_MANAGER';
 
   if (!isOpen || !machine) return null;
 
@@ -207,21 +211,24 @@ export const MachineDetailDrawer: React.FC<MachineDetailDrawerProps> = ({
 
           {/* Docked Action Footer */}
           <div className="px-6 py-4 bg-white border-t border-[#E5E7EB] flex items-center justify-between shrink-0">
-            {/* Delete button: only enabled for available (unassigned) machines */}
-            <button
-              type="button"
-              onClick={() => onDelete(machine)}
-              disabled={isAssigned}
-              title={isAssigned ? 'Only available unassigned machines can be deleted' : 'Delete machine'}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                isAssigned
-                  ? 'text-[#9CA3AF] cursor-not-allowed opacity-60'
-                  : 'text-[#E32032] hover:bg-red-50 cursor-pointer'
-              }`}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{isAssigned ? 'Assigned (Cannot Delete)' : 'Delete machine'}</span>
-            </button>
+            {isOem && onDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(machine)}
+                disabled={isAssigned}
+                title={isAssigned ? 'Only available unassigned machines can be deleted' : 'Delete machine'}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                  isAssigned
+                    ? 'text-[#9CA3AF] cursor-not-allowed opacity-60'
+                    : 'text-[#E32032] hover:bg-red-50 cursor-pointer'
+                }`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isAssigned ? 'Assigned (Cannot Delete)' : 'Delete machine'}</span>
+              </button>
+            ) : (
+              <div />
+            )}
 
             <div className="flex items-center gap-2">
               <button
@@ -231,14 +238,16 @@ export const MachineDetailDrawer: React.FC<MachineDetailDrawerProps> = ({
               >
                 Close
               </button>
-              <button
-                type="button"
-                onClick={() => onEdit(machine)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#171717] hover:bg-[#333333] text-white transition-all cursor-pointer"
-              >
-                <Edit2 className="w-3.5 h-3.5 text-white" />
-                <span>Edit machine</span>
-              </button>
+              {isOem && onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(machine)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#171717] hover:bg-[#333333] text-white transition-all cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-white" />
+                  <span>Edit machine</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -33,6 +33,8 @@ class UserResponse(BaseModel):
     role: str
     phone_number: Optional[str] = None
     is_active: bool
+    company_name: Optional[str] = None
+    client_code: Optional[str] = None
     last_login_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
