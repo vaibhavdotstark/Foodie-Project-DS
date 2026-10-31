@@ -46,7 +46,7 @@ export const MachinesPage: React.FC = () => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [rowsPerPage, setRowsPerPage] = useState<number>(12);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
   // Row Actions Dropdown Menu State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -212,6 +212,11 @@ export const MachinesPage: React.FC = () => {
         matchesLocation &&
         matchesModel
       );
+    }).sort((a, b) => {
+      const dateA = new Date(a.created_at || '').getTime() || 0;
+      const dateB = new Date(b.created_at || '').getTime() || 0;
+      if (dateB !== dateA) return dateB - dateA;
+      return (b.machine_code || '').localeCompare(a.machine_code || '', undefined, { numeric: true });
     });
   }, [
     machines,
@@ -699,7 +704,6 @@ export const MachinesPage: React.FC = () => {
                 className="px-2 py-0.5 rounded border border-[#E5E7EB] bg-white text-[#171717] font-semibold text-xs cursor-pointer focus:outline-none"
               >
                 <option value={10}>10</option>
-                <option value={12}>12</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>

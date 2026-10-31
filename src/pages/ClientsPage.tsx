@@ -186,6 +186,11 @@ export const ClientsPage: React.FC = () => {
           org.shipping_address.toLowerCase().includes(locationFilter.toLowerCase()));
 
       return matchesSearch && matchesStatus && matchesType && matchesLocation;
+    }).sort((a, b) => {
+      const dateA = new Date(a.created_at || '').getTime() || 0;
+      const dateB = new Date(b.created_at || '').getTime() || 0;
+      if (dateB !== dateA) return dateB - dateA;
+      return (b.client_code || '').localeCompare(a.client_code || '', undefined, { numeric: true });
     });
   }, [organizations, searchQuery, statusFilter, businessTypeFilter, locationFilter]);
 
@@ -487,20 +492,17 @@ export const ClientsPage: React.FC = () => {
           </div>
 
           {/* More Filters Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter('All');
-              setBusinessTypeFilter('All');
-              setLocationFilter('All states');
-              setSearchQuery('');
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
             }}
-            title="Reset Filters"
-            className="flex items-center gap-1.5 px-3 py-2 border border-[#E3E4E6] rounded-xl bg-white hover:bg-[#F8F9FA] text-xs font-semibold text-[#171717] transition-colors cursor-pointer"
+            title="More filters"
+            className="flex items-center gap-1.5 px-3 py-2 border border-[#E3E4E6] rounded-xl bg-white hover:bg-[#F8F9FA] text-xs font-semibold text-[#171717] transition-colors cursor-pointer select-none"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-[#666666]" />
             <span>More filters</span>
-          </button>
+          </a>
         </div>
 
         {/* 3. Selection Banner */}

@@ -89,11 +89,11 @@ def get_all_machines(current_user: dict = Depends(get_current_user)):
     with get_db_cursor() as cur:
         if current_user.get("role") != "OEM_MANAGER" and current_user.get("organization_id"):
             cur.execute(
-                f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s ORDER BY m.machine_code ASC;",
+                f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s ORDER BY m.created_at DESC, m.machine_code DESC;",
                 (current_user["organization_id"],)
             )
         else:
-            cur.execute(f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) ORDER BY m.machine_code ASC;")
+            cur.execute(f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) ORDER BY m.created_at DESC, m.machine_code DESC;")
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         return [MachineResponse(**row_to_machine_dict(cols, r)) for r in rows]

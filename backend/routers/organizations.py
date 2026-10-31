@@ -32,7 +32,7 @@ def get_next_client_code():
 @router.get("", response_model=List[OrganizationResponse])
 def get_organizations():
     with get_db_cursor() as cur:
-        cur.execute("SELECT * FROM organizations WHERE is_deleted IS NOT TRUE ORDER BY client_code ASC;")
+        cur.execute("SELECT * FROM organizations WHERE is_deleted IS NOT TRUE ORDER BY created_at DESC, client_code DESC;")
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         results = []

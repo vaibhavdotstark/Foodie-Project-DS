@@ -44,7 +44,14 @@ export const ClientDashboardView: React.FC = () => {
       ]);
 
       if (stats) setDashboardStats(stats);
-      setMachines(machineList);
+      setMachines(
+        [...machineList].sort((a, b) => {
+          const dateA = new Date(a.created_at || '').getTime() || 0;
+          const dateB = new Date(b.created_at || '').getTime() || 0;
+          if (dateB !== dateA) return dateB - dateA;
+          return (b.machine_code || '').localeCompare(a.machine_code || '', undefined, { numeric: true });
+        })
+      );
     } catch (err) {
       console.error('Error fetching client dashboard data:', err);
     } finally {
