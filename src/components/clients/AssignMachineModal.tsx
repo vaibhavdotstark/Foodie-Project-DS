@@ -35,6 +35,14 @@ export interface AssignMachineModalProps {
   onSuccess: () => void;
 }
 
+const getLocalToday = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const AssignMachineModal: React.FC<AssignMachineModalProps> = ({
   isOpen,
   client,
@@ -43,7 +51,7 @@ export const AssignMachineModal: React.FC<AssignMachineModalProps> = ({
   onSuccess,
 }) => {
   const [availableMachines, setAvailableMachines] = useState<Machine[]>([]);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalToday();
   const [rows, setRows] = useState<AssignMachineRow[]>([
     {
       machine_id: '',
@@ -62,7 +70,7 @@ export const AssignMachineModal: React.FC<AssignMachineModalProps> = ({
     if (isOpen) {
       setIsLoadingMachines(true);
       setError(null);
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalToday();
       setRows([
         {
           machine_id: '',

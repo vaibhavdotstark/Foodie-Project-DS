@@ -492,48 +492,6 @@ export const AddMachineDrawer: React.FC<AddMachineDrawerProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* ---------------------------------------------------- */}
-              {/* Section 4: Operational Status */}
-              {/* ---------------------------------------------------- */}
-              <div>
-                <h3 className="text-sm font-bold text-[#111827] tracking-tight mb-4">
-                  Operational status
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1.5">
-                      Connectivity
-                    </label>
-                    <select
-                      name="connectivity_status"
-                      value={formData.connectivity_status}
-                      onChange={handleChange}
-                      className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
-                    >
-                      <option value="Offline">Offline</option>
-                      <option value="Online">Online</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1.5">
-                      Machine status
-                    </label>
-                    <select
-                      name="operational_status"
-                      value={formData.operational_status}
-                      onChange={handleChange}
-                      className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
-                    >
-                      <option value="Idle">Idle</option>
-                      <option value="Running">Running</option>
-                      <option value="Maintenance">Maintenance</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
             </form>
           </div>
 

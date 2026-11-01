@@ -175,7 +175,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                   {/* Row 1: Full name, Business type, Tax ID */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-8 flex items-end">
                         Full name / Company name
                       </label>
                       <input
@@ -190,7 +190,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-8 flex items-end">
                         Business type (Individual / Corporate)
                       </label>
                       <div className="relative">
@@ -216,7 +216,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-8 flex items-end">
                         Tax ID (ABN / GST)
                       </label>
                       <input
@@ -233,7 +233,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                   {/* Row 2: Onboarding date, Comms preference, Payment terms */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Onboarding date
                       </label>
                       <input
@@ -246,7 +246,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Comms preference
                       </label>
                       <div className="relative">
@@ -272,7 +272,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Payment terms
                       </label>
                       <div className="relative">
@@ -311,7 +311,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                   {/* Row 1: Point of contact, Email, Website */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Point of contact
                       </label>
                       <input
@@ -325,7 +325,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Email
                       </label>
                       <input
@@ -338,7 +338,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Website
                       </label>
                       <input

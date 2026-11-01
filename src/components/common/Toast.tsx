@@ -34,7 +34,7 @@ export const Toast: React.FC<ToastProps> = ({
   };
 
   return (
-    <div className="fixed top-5 right-5 z-50 animate-in slide-in-from-top-4 fade-in duration-200">
+    <div className="fixed top-5 right-5 z-[9999] animate-in slide-in-from-top-4 fade-in duration-200 pointer-events-auto">
       <div
         className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-xs font-semibold ${bgStyles[type]}`}
       >

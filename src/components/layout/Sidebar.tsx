@@ -38,6 +38,11 @@ export const Sidebar: React.FC = () => {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              onClick={() => {
+                if (item.to === '/clients') {
+                  window.dispatchEvent(new CustomEvent('reset-clients-view'));
+                }
+              }}
               className={({ isActive }) =>
                 `w-full flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-colors duration-150 relative cursor-pointer border ${
                   isActive

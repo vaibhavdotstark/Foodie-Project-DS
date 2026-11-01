@@ -12,6 +12,7 @@ import { MetricCard } from '../common/MetricCard';
 import { FleetEnergyChart } from './FleetEnergyChart';
 import { AddClientModal } from '../clients/AddClientModal';
 import { AddMachineDrawer } from '../machines/AddMachineDrawer';
+import { Toast } from '../common/Toast';
 import { useAuth } from '../../context/AuthContext';
 import { dashboardApi, orgsApi, machinesApi } from '../../services/api';
 import type { Organization, Machine, DashboardStats } from '../../types';
@@ -23,6 +24,7 @@ export const OemDashboardView: React.FC = () => {
   // Modals & Drawers state
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
 
   // Live PostgreSQL & Telemetry Data State
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
@@ -349,18 +351,35 @@ export const OemDashboardView: React.FC = () => {
       <AddClientModal
         isOpen={isAddClientOpen}
         onClose={() => setIsAddClientOpen(false)}
-        onSuccess={() => {
+        onSuccess={(newOrg) => {
           fetchData();
+          setToast({
+            message: `Client ${newOrg.company_name} (${newOrg.client_code}) added successfully!`,
+            type: 'success',
+          });
         }}
       />
 
       <AddMachineDrawer
         isOpen={isAddMachineOpen}
         onClose={() => setIsAddMachineOpen(false)}
-        onSuccess={() => {
+        onSuccess={(newMachine) => {
           fetchData();
+          setToast({
+            message: `Machine ${newMachine.serial_number || newMachine.machine_code} added successfully!`,
+            type: 'success',
+          });
         }}
       />
+
+      {/* Toast Notification Popup */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };

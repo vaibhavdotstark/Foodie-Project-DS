@@ -119,6 +119,7 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     role: Optional[str] = None
     phone_number: Optional[str] = None
+    password: Optional[str] = None
     assigned_site_id: Optional[str] = None
     is_active: Optional[bool] = None
 

@@ -285,43 +285,43 @@ export const MachinesPage: React.FC = () => {
       {/* 2. Top Metric Status Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {/* Card 1: Total Machines */}
-        <div className="bg-white rounded-xl border border-[#E3E4E6] p-4 flex items-center shadow-xs">
-          <span className="text-2xl font-extrabold text-[#171717] tracking-tight">
+        <div className="bg-white rounded-xl border border-[#E3E4E6] p-3 sm:p-4 flex items-center justify-between gap-2 shadow-xs min-w-0">
+          <span className="text-xl sm:text-2xl font-extrabold text-[#171717] tracking-tight shrink-0">
             {totalCount}
           </span>
-          <span className="text-xs text-[#6B7280] font-medium ml-2.5">
+          <span className="text-xs text-[#6B7280] font-medium shrink-0">
             Machines
           </span>
         </div>
 
         {/* Card 2: Running Machines */}
-        <div className="bg-white rounded-xl border border-[#E3E4E6] p-4 flex items-center shadow-xs">
-          <span className="text-2xl font-extrabold text-[#171717] tracking-tight">
+        <div className="bg-white rounded-xl border border-[#E3E4E6] p-3 sm:p-4 flex items-center justify-between gap-2 shadow-xs min-w-0">
+          <span className="text-xl sm:text-2xl font-extrabold text-[#171717] tracking-tight shrink-0">
             {runningCount}
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EAFBF1] text-[#0A7135] border border-[#B7F4CE] ml-2.5">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-[#EAFBF1] text-[#0A7135] border border-[#B7F4CE] shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00C951]" />
             <span>Running</span>
           </span>
         </div>
 
         {/* Card 3: Idle Machines */}
-        <div className="bg-white rounded-xl border border-[#E3E4E6] p-4 flex items-center shadow-xs">
-          <span className="text-2xl font-extrabold text-[#171717] tracking-tight">
+        <div className="bg-white rounded-xl border border-[#E3E4E6] p-3 sm:p-4 flex items-center justify-between gap-2 shadow-xs min-w-0">
+          <span className="text-xl sm:text-2xl font-extrabold text-[#171717] tracking-tight shrink-0">
             {idleCount}
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] ml-2.5">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             <span>Idle</span>
           </span>
         </div>
 
         {/* Card 4: Maintenance Machines */}
-        <div className="bg-white rounded-xl border border-[#E3E4E6] p-4 flex items-center shadow-xs">
-          <span className="text-2xl font-extrabold text-[#171717] tracking-tight">
+        <div className="bg-white rounded-xl border border-[#E3E4E6] p-3 sm:p-4 flex items-center justify-between gap-2 shadow-xs min-w-0">
+          <span className="text-xl sm:text-2xl font-extrabold text-[#171717] tracking-tight shrink-0">
             {maintenanceCount}
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] ml-2.5">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE] shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
             <span>Maintenance</span>
           </span>

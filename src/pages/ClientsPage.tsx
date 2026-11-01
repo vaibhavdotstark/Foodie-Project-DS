@@ -14,6 +14,7 @@ import {
   Edit2,
   Download,
   Archive,
+  CheckCircle2,
   Trash2,
   Building2,
   Cpu,
@@ -90,6 +91,8 @@ export const ClientsPage: React.FC = () => {
           (o) => o.id === selectedClientIdFromUrl || o.client_code === selectedClientIdFromUrl
         );
         if (found) setSelectedClient(found);
+      } else if (!selectedClientIdFromUrl) {
+        setSelectedClient(null);
       }
     } catch (err) {
       console.error('Failed to load clients data:', err);
@@ -101,6 +104,25 @@ export const ClientsPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [selectedClientIdFromUrl]);
+
+  useEffect(() => {
+    if (!selectedClientIdFromUrl) {
+      setSelectedClient(null);
+      setEditingClient(null);
+    }
+  }, [selectedClientIdFromUrl]);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setSelectedClient(null);
+      setEditingClient(null);
+      setIsAddClientOpen(false);
+      setIsAssignMachineOpen(false);
+      setSearchParams({});
+    };
+    window.addEventListener('reset-clients-view', handleReset);
+    return () => window.removeEventListener('reset-clients-view', handleReset);
+  }, [setSearchParams]);
 
   // Click outside listener for the row action menu
   useEffect(() => {
@@ -304,8 +326,18 @@ export const ClientsPage: React.FC = () => {
       setOrganizations((prev) =>
         prev.map((o) => (o.id === updated.id ? updated : o))
       );
+      setToast({
+        message: updated.is_active
+          ? `Client ${updated.company_name} activated successfully!`
+          : `Client ${updated.company_name} archived (set to inactive).`,
+        type: updated.is_active ? 'success' : 'info',
+      });
     } catch (err) {
       console.error('Failed to toggle client status:', err);
+      setToast({
+        message: 'Failed to update client status.',
+        type: 'error',
+      });
     }
   };
 
@@ -337,6 +369,10 @@ export const ClientsPage: React.FC = () => {
               prev.map((o) => (o.id === updatedOrg.id ? updatedOrg : o))
             );
             setSelectedClient(updatedOrg);
+            setToast({
+              message: `Client ${updatedOrg.company_name} updated successfully!`,
+              type: 'success',
+            });
           }}
         />
 
@@ -370,6 +406,15 @@ export const ClientsPage: React.FC = () => {
             });
           }}
         />
+
+        {/* Toast Notification Popup */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     );
   }
@@ -759,21 +804,49 @@ export const ClientsPage: React.FC = () => {
                               <span>Export data</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                setActiveMenuId(null);
-                                await orgsApi.update(client.id, {
-                                  is_active: !client.is_active,
-                                  status: client.is_active ? 'Inactive' : 'Active',
-                                });
-                                await fetchData();
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
-                            >
-                              <Archive className="w-3.5 h-3.5 text-[#6B7280]" />
-                              <span>Archive</span>
-                            </button>
+                            {(() => {
+                              const isCurrentlyActive = client.is_active && client.status !== 'Inactive';
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setActiveMenuId(null);
+                                    try {
+                                      await orgsApi.update(client.id, {
+                                        is_active: !isCurrentlyActive,
+                                        status: isCurrentlyActive ? 'Inactive' : 'Active',
+                                      });
+                                      await fetchData();
+                                      setToast({
+                                        message: isCurrentlyActive
+                                          ? `Client ${client.company_name} archived (set to inactive).`
+                                          : `Client ${client.company_name} activated successfully!`,
+                                        type: isCurrentlyActive ? 'info' : 'success',
+                                      });
+                                    } catch (err) {
+                                      console.error('Failed to toggle client status:', err);
+                                      setToast({
+                                        message: 'Failed to update client status.',
+                                        type: 'error',
+                                      });
+                                    }
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                                >
+                                  {isCurrentlyActive ? (
+                                    <>
+                                      <Archive className="w-3.5 h-3.5 text-[#6B7280]" />
+                                      <span>Archive</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-[#0A7135]" />
+                                      <span className="text-[#0A7135]">Activate</span>
+                                    </>
+                                  )}
+                                </button>
+                              );
+                            })()}
 
                             <div className="border-t border-[#F3F4F6] my-1" />
 

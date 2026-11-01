@@ -33,6 +33,14 @@ const calculateFiveYearsLater = (dateStr: string): string => {
   return `${targetYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 };
 
+const getLocalToday = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const AddClientModal: React.FC<AddClientModalProps> = ({
   isOpen,
   onClose,
@@ -41,9 +49,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   // Section 1: Client details
   const [clientCode, setClientCode] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [onboardingDate, setOnboardingDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
+  const [onboardingDate, setOnboardingDate] = useState(getLocalToday());
   const [businessType, setBusinessType] = useState<'Corporate' | 'Individual'>('Corporate');
   const [taxId, setTaxId] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('30 days');
@@ -58,7 +64,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   const [shippingAddress, setShippingAddress] = useState('');
 
   // Section 3: Add Foodie to the client
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalToday();
   const [machineRows, setMachineRows] = useState<MachineRow[]>([
     {
       machine_id: '',
@@ -115,6 +121,17 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       setShippingAddress('');
       setPaymentTerms('30 days');
       setCommsPreference('Email');
+
+      const currentToday = getLocalToday();
+      setOnboardingDate(currentToday);
+      setMachineRows([
+        {
+          machine_id: '',
+          location: '',
+          lease_start_date: currentToday,
+          lease_end_date: calculateFiveYearsLater(currentToday),
+        },
+      ]);
 
       // Fetch next auto-generated client code (e.g. CL-0015)
       orgsApi
@@ -251,11 +268,15 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       }));
 
     // If shipping address is empty or "Same as billing", sync with billing address
-    const resolvedShipping =
-      !shippingAddress.trim() ||
-        shippingAddress.trim().toLowerCase() === 'same as billing'
-        ? billingAddress.trim() || undefined
-        : shippingAddress.trim();
+    const trimmedBilling = billingAddress.trim();
+    const trimmedShipping = shippingAddress.trim();
+    const isSameAsBilling =
+      !trimmedShipping ||
+      trimmedShipping.toLowerCase() === 'same as billing' ||
+      trimmedShipping.toLowerCase() === 'same as billing address';
+    const resolvedShipping = isSameAsBilling
+      ? (trimmedBilling || undefined)
+      : trimmedShipping;
 
     try {
       const created = await orgsApi.create({
@@ -290,7 +311,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       setWebsite('');
       setBillingAddress('');
       setShippingAddress('');
-      const resetToday = new Date().toISOString().split('T')[0];
+      const resetToday = getLocalToday();
+      setOnboardingDate(resetToday);
       setMachineRows([
         {
           machine_id: '',

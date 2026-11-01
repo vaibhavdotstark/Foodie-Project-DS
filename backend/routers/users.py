@@ -71,6 +71,7 @@ def create_user(payload: UserCreate, current_user: dict = Depends(get_current_us
 
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(user_id: str, payload: UserUpdate):
+    pw_hash = get_password_hash(payload.password.strip()) if (payload.password and payload.password.strip()) else None
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
             UPDATE users
@@ -78,6 +79,7 @@ def update_user(user_id: str, payload: UserUpdate):
                 last_name = COALESCE(%s, last_name),
                 role = COALESCE(%s, role),
                 phone_number = %s,
+                password_hash = COALESCE(%s, password_hash),
                 is_active = COALESCE(%s, is_active),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
@@ -87,6 +89,7 @@ def update_user(user_id: str, payload: UserUpdate):
             payload.last_name.strip() if payload.last_name else None,
             payload.role,
             payload.phone_number.strip() if payload.phone_number else None,
+            pw_hash,
             payload.is_active,
             user_id
         ))
@@ -99,6 +102,11 @@ def update_user(user_id: str, payload: UserUpdate):
         d["id"] = str(d["id"])
         if d.get("organization_id"):
             d["organization_id"] = str(d["organization_id"])
+            cur.execute("SELECT company_name, client_code FROM organizations WHERE id = %s;", (d["organization_id"],))
+            org_row = cur.fetchone()
+            if org_row:
+                d["company_name"] = org_row[0]
+                d["client_code"] = org_row[1]
         return UserResponse(**d)
 
 @router.delete("/{user_id}")
