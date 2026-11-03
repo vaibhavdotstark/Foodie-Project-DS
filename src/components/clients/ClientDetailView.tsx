@@ -45,6 +45,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   onToggleStatus,
 }) => {
   const navigate = useNavigate();
+  const SHOW_INVITE_FEATURE = false; // Hidden for Sprint 1 demo
   const [activeTab, setActiveTab] = useState<'MACHINES' | 'USERS'>('MACHINES');
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [activeMachineMenuId, setActiveMachineMenuId] = useState<string | null>(null);
@@ -267,14 +268,16 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center">
-          <button
-            type="button"
-            onClick={onInviteUsers}
-            className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-white" />
-            <span>Invite users</span>
-          </button>
+          {SHOW_INVITE_FEATURE && (
+            <button
+              type="button"
+              onClick={onInviteUsers}
+              className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-white" />
+              <span>Invite users</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -745,18 +748,20 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-[#111827]">Users</h3>
                 <p className="text-xs text-[#6B7280] mt-0.5">
-                  Authorized personnel with access to this client's Foodie composter fleet ({totalUsersCount} total · {clientUsers.length} active, {pendingInvitations.length} pending).
+                  Authorized personnel with access to this client's Foodie composter fleet ({clientUsers.length} active).
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={onInviteUsers}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Invite users</span>
-              </button>
+              {SHOW_INVITE_FEATURE && (
+                <button
+                  type="button"
+                  onClick={onInviteUsers}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Invite users</span>
+                </button>
+              )}
             </div>
 
             {totalUsersCount === 0 ? (
@@ -765,17 +770,19 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                   <Users className="w-6 h-6" />
                 </div>
                 <h4 className="text-xs font-bold text-[#111827]">No users assigned</h4>
-                <p className="text-xs text-[#6B7280] mt-1 max-w-sm mx-auto mb-4">
-                  Invite personnel such as the Organisation Owner or Site Operators to grant access to this organization.
+                <p className="text-xs text-[#6B7280] mt-1 max-w-sm mx-auto">
+                  No authorized personnel assigned to this organization yet.
                 </p>
-                <button
-                  type="button"
-                  onClick={onInviteUsers}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white cursor-pointer shadow-2xs"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Invite users</span>
-                </button>
+                {SHOW_INVITE_FEATURE && (
+                  <button
+                    type="button"
+                    onClick={onInviteUsers}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white cursor-pointer shadow-2xs mt-4"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Invite users</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
