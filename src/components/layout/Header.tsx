@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -452,73 +453,99 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {isFaqOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl border border-[#E3E4E6] shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-150">
-              <div className="px-6 py-4 border-b border-[#E3E4E6] flex items-center justify-between bg-[#FAFAFA]">
-                <div className="flex items-center gap-2">
-                  <HelpCircle className="w-5 h-5 text-[#E32032]" />
-                  <h3 className="text-sm font-bold text-[#171717]">Foodie Composter Knowledge & FAQ</h3>
+        {isFaqOpen &&
+          createPortal(
+            <div
+              onClick={() => setIsFaqOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-3 sm:p-4 animate-in fade-in duration-150"
+            >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl border border-[#E3E4E6] shadow-2xl w-full max-w-lg max-h-[90dvh] sm:max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150 my-auto"
+            >
+              <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[#E3E4E6] flex items-center justify-between bg-[#FAFAFA] shrink-0">
+                <div className="flex items-center gap-2 min-w-0 pr-2">
+                  <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#E32032] shrink-0" />
+                  <h3 className="text-xs sm:text-sm font-bold text-[#171717] truncate">Foodie Composter Knowledge & FAQ</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsFaqOpen(false)}
-                  className="p-1.5 rounded-lg text-[#666666] hover:text-[#171717] hover:bg-slate-200 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-[#666666] hover:text-[#171717] hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4 text-xs">
+              <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-3.5 text-xs overscroll-contain">
                 <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E3E4E6]">
                   <h4 className="font-bold text-[#171717] mb-1">
-                    What is the target operating temperature for the composter?
+                    What is Foodie and how does it process food waste?
                   </h4>
                   <p className="text-[#666666] leading-relaxed">
-                    Foodie composting chambers operate between 55°C and 70°C. This thermophilic temperature range ensures rapid microbial digestion and complete pasteurization, eliminating food-borne pathogens.
+                    Foodie is a commercial onsite food waste converter that rapidly breaks down organic waste into nutrient-rich compost-like material in around 24 hours using a specialized ecosystem of thermophilic microorganisms.
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E3E4E6]">
                   <h4 className="font-bold text-[#171717] mb-1">
-                    How does the Victron ET340 meter monitor power?
+                    What types of waste can be processed and what is the volume reduction?
                   </h4>
                   <p className="text-[#666666] leading-relaxed">
-                    The Victron ET340 3-phase meter records real-time voltage across L1, L2, and L3, current amperage, line frequency (50 Hz nominal), and cumulative kWh consumption over an RS485 Modbus link to the edge gateway.
+                    Foodie handles segregated organic food waste including vegetables, fruits, and cooked meats. During digestion, waste volume shrinks by up to 90% (up to 9X reduction), producing 10-15% daily output ready for agricultural or garden soil enrichment.
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E3E4E6]">
                   <h4 className="font-bold text-[#171717] mb-1">
-                    What happens when facility Wi-Fi or cellular drops?
+                    What unit sizes and processing capacities are available?
                   </h4>
                   <p className="text-[#666666] leading-relaxed">
-                    The local Raspberry Pi edge controller enters Store-and-Forward mode, buffering sensor records into a local SQLite queue. Once network access returns, all buffered batches replay in chronological order with zero data loss.
+                    Foodie offers modular configurations to match any commercial operation: F-25 (25 kg/day), F-100 (100 kg/day), F-500 (500 kg/day), and F-1000 (up to 1,000 kg/day).
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E3E4E6]">
                   <h4 className="font-bold text-[#171717] mb-1">
-                    How do I resolve safety interlock alerts?
+                    What are the site installation and utility requirements?
                   </h4>
                   <p className="text-[#666666] leading-relaxed">
-                    When the door safety switch or high-temperature threshold triggers an alert, inspect the machine physical latch and biological bin level, then press "Resolve" in the Alerts screen to acknowledge the event in the audit log.
+                    Units require a dry, undercover, ventilated location with standard power (the F-25 typically uses 15 kWh per day). Daily routine operation requires only about 20 minutes of personnel time.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E3E4E6]">
+                  <h4 className="font-bold text-[#171717] mb-1">
+                    How does Foodie ensure facility safety and pathogen suppression?
+                  </h4>
+                  <p className="text-[#666666] leading-relaxed">
+                    Each machine features carbon filtration for odor control, door-activated shut-offs, abnormal temperature safety stops, and dual emergency buttons. High thermophilic digestion temperatures suppress pathogens and weed seed germination.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E3E4E6]">
+                  <h4 className="font-bold text-[#171717] mb-1">
+                    What commercial lease and purchase options are available?
+                  </h4>
+                  <p className="text-[#666666] leading-relaxed">
+                    PowerTech Energy provides complete lease arrangements (including machine installation, team training, regular servicing, and optimization) as well as outright purchase options with full warranty and maintenance support.
                   </p>
                 </div>
               </div>
 
-              <div className="px-6 py-3.5 border-t border-[#E3E4E6] bg-[#FAFAFA] flex items-center justify-between">
-                <span className="text-[11px] text-[#888888]">PowerTech Energy Operations Support</span>
+              <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-[#E3E4E6] bg-[#FAFAFA] flex items-center justify-between shrink-0 gap-2">
+                <span className="text-[10px] sm:text-[11px] text-[#888888] truncate">PowerTech Energy Operations Support</span>
                 <button
                   type="button"
                   onClick={() => setIsFaqOpen(false)}
-                  className="px-4 py-2 bg-[#171717] hover:bg-black text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#171717] hover:bg-black text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0"
                 >
                   Close
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </header>
     );

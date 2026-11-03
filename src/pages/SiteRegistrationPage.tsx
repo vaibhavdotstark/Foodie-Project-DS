@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Trash2, CheckCircle2, MapPin, Eye, Edit2, X, Lock, Save, Loader2, Clock, Globe } from 'lucide-react';
+import { Building2, Plus, Trash2, CheckCircle2, MapPin, Eye, Edit2, X, Lock, Save, Loader2, Clock } from 'lucide-react';
 import { InputField } from '../components/common/InputField';
 import { SelectField } from '../components/common/SelectField';
 import { StatusBadge } from '../components/common/StatusBadge';
@@ -19,8 +19,6 @@ export const SiteRegistrationPage: React.FC = () => {
     site_code: '',
     site_name: '',
     address: '',
-    latitude: '',
-    longitude: '',
     timezone: 'Australia/Adelaide',
     is_active: true,
   };
@@ -35,15 +33,11 @@ export const SiteRegistrationPage: React.FC = () => {
     site_name: string;
     address: string;
     timezone: string;
-    latitude: string;
-    longitude: string;
     is_active: boolean;
   }>({
     site_name: '',
     address: '',
     timezone: 'Australia/Adelaide',
-    latitude: '',
-    longitude: '',
     is_active: true,
   });
   const [editErrors, setEditErrors] = useState<{ site_name?: string; address?: string }>({});
@@ -103,14 +97,6 @@ export const SiteRegistrationPage: React.FC = () => {
       errs.address = 'Physical installation address is required';
     }
 
-    if (formData.latitude && isNaN(Number(formData.latitude))) {
-      errs.latitude = 'Latitude must be a valid decimal number';
-    }
-
-    if (formData.longitude && isNaN(Number(formData.longitude))) {
-      errs.longitude = 'Longitude must be a valid decimal number';
-    }
-
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -129,8 +115,6 @@ export const SiteRegistrationPage: React.FC = () => {
         site_code: formData.site_code.trim().toUpperCase(),
         site_name: formData.site_name.trim(),
         address: formData.address.trim(),
-        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
         timezone: formData.timezone,
         is_active: formData.is_active,
       });
@@ -161,8 +145,6 @@ export const SiteRegistrationPage: React.FC = () => {
       site_name: site.site_name,
       address: site.address,
       timezone: site.timezone,
-      latitude: site.latitude !== null && site.latitude !== undefined ? site.latitude.toString() : '',
-      longitude: site.longitude !== null && site.longitude !== undefined ? site.longitude.toString() : '',
       is_active: site.is_active,
     });
     setEditErrors({});
@@ -176,8 +158,6 @@ export const SiteRegistrationPage: React.FC = () => {
       site_name: site.site_name,
       address: site.address,
       timezone: site.timezone,
-      latitude: site.latitude !== null && site.latitude !== undefined ? site.latitude.toString() : '',
-      longitude: site.longitude !== null && site.longitude !== undefined ? site.longitude.toString() : '',
       is_active: site.is_active,
     });
     setEditErrors({});
@@ -202,8 +182,6 @@ export const SiteRegistrationPage: React.FC = () => {
         site_name: editFormData.site_name.trim(),
         address: editFormData.address.trim(),
         timezone: editFormData.timezone,
-        latitude: editFormData.latitude ? parseFloat(editFormData.latitude) : null,
-        longitude: editFormData.longitude ? parseFloat(editFormData.longitude) : null,
         is_active: editFormData.is_active,
       });
 
@@ -330,24 +308,6 @@ export const SiteRegistrationPage: React.FC = () => {
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             error={errors.address}
           />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField
-              label="GPS Latitude (Optional)"
-              placeholder="e.g. -34.921300"
-              value={formData.latitude}
-              onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-              error={errors.latitude}
-            />
-
-            <InputField
-              label="GPS Longitude (Optional)"
-              placeholder="e.g. 138.621500"
-              value={formData.longitude}
-              onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-              error={errors.longitude}
-            />
-          </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-[#E3E4E6] mt-2">
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -574,25 +534,13 @@ export const SiteRegistrationPage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-[#E3E4E6]">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666] flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-500" /> Timezone
-                    </span>
-                    <span className="text-xs font-medium text-[#171717] mt-1 block">
-                      {editingSite.timezone}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-[#E3E4E6]">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666] flex items-center gap-1">
-                      <Globe className="w-3 h-3 text-slate-500" /> GPS Coordinates
-                    </span>
-                    <span className="text-xs font-mono text-[#171717] mt-1 block">
-                      {editingSite.latitude !== null && editingSite.latitude !== undefined && editingSite.longitude !== null && editingSite.longitude !== undefined
-                        ? `${editingSite.latitude}, ${editingSite.longitude}`
-                        : 'Not configured'}
-                    </span>
-                  </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-[#E3E4E6]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666] flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-500" /> Timezone
+                  </span>
+                  <span className="text-xs font-medium text-[#171717] mt-1 block">
+                    {editingSite.timezone}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-[#E3E4E6] mt-2">
@@ -665,20 +613,6 @@ export const SiteRegistrationPage: React.FC = () => {
                   value={editFormData.timezone}
                   onChange={(e) => setEditFormData({ ...editFormData, timezone: e.target.value })}
                 />
-
-                {/* Editable Coordinates */}
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField
-                    label="GPS Latitude"
-                    value={editFormData.latitude}
-                    onChange={(e) => setEditFormData({ ...editFormData, latitude: e.target.value })}
-                  />
-                  <InputField
-                    label="GPS Longitude"
-                    value={editFormData.longitude}
-                    onChange={(e) => setEditFormData({ ...editFormData, longitude: e.target.value })}
-                  />
-                </div>
 
                 {/* Editable Status */}
                 <label className="flex items-center gap-2 cursor-pointer select-none pt-2 border-t border-[#E3E4E6]">

@@ -38,6 +38,9 @@ class UserResponse(BaseModel):
     last_login_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
+    deleted_by: Optional[str] = None
 
 class LoginResponse(BaseModel):
     token: str
@@ -134,8 +137,6 @@ class SiteCreate(BaseModel):
     site_code: str
     site_name: str
     address: str
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     timezone: Optional[str] = 'Australia/Adelaide'
     is_active: Optional[bool] = True
 
@@ -163,25 +164,9 @@ class SiteCreate(BaseModel):
             raise ValueError('Physical installation address is required (min 5 characters).')
         return clean
 
-    @field_validator('latitude')
-    @classmethod
-    def check_lat(cls, v: Optional[float]) -> Optional[float]:
-        if v is not None and (v < -90 or v > 90):
-            raise ValueError('Latitude must be between -90 and 90.')
-        return v
-
-    @field_validator('longitude')
-    @classmethod
-    def check_lng(cls, v: Optional[float]) -> Optional[float]:
-        if v is not None and (v < -180 or v > 180):
-            raise ValueError('Longitude must be between -180 and 180.')
-        return v
-
 class SiteUpdate(BaseModel):
     site_name: Optional[str] = None
     address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     timezone: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -191,8 +176,6 @@ class SiteResponse(BaseModel):
     site_code: str
     site_name: str
     address: str
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     timezone: str
     is_active: bool
     created_at: Optional[datetime] = None

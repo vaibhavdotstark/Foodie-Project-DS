@@ -463,7 +463,7 @@ export const MachinesPage: React.FC = () => {
             {(searchQuery ||
               statusFilter !== 'All' ||
               clientFilter !== 'All clients' ||
-              locationFilter !== 'All states' ||
+              locationFilter !== 'All locations' ||
               modelFilter !== 'All') && (
               <button
                 type="button"
@@ -471,7 +471,7 @@ export const MachinesPage: React.FC = () => {
                   setSearchQuery('');
                   setStatusFilter('All');
                   setClientFilter('All clients');
-                  setLocationFilter('All states');
+                  setLocationFilter('All locations');
                   setModelFilter('All');
                   setCurrentPage(1);
                 }}

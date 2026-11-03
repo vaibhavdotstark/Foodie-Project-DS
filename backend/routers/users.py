@@ -73,9 +73,11 @@ def create_user(payload: UserCreate, current_user: dict = Depends(get_current_us
 
         org_id = None if payload.role == "OEM_MANAGER" else payload.organization_id
 
+        creator_id = current_user.get("id")
+
         cur.execute("""
-            INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role, phone_number, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, true)
+            INSERT INTO users (organization_id, email, password_hash, first_name, last_name, role, phone_number, is_active, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, true, %s)
             RETURNING id, organization_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at;
         """, (
             org_id,
@@ -84,7 +86,8 @@ def create_user(payload: UserCreate, current_user: dict = Depends(get_current_us
             payload.first_name.strip(),
             payload.last_name.strip(),
             payload.role,
-            payload.phone_number.strip() if payload.phone_number else None
+            payload.phone_number.strip() if payload.phone_number else None,
+            creator_id
         ))
         row = cur.fetchone()
         cols = [desc[0] for desc in cur.description]
@@ -95,8 +98,10 @@ def create_user(payload: UserCreate, current_user: dict = Depends(get_current_us
         return UserResponse(**d)
 
 @router.put("/{user_id}", response_model=UserResponse)
-def update_user(user_id: str, payload: UserUpdate):
+def update_user(user_id: str, payload: UserUpdate, current_user: dict = Depends(get_current_user)):
     pw_hash = get_password_hash(payload.password.strip()) if (payload.password and payload.password.strip()) else None
+    updater_id = current_user.get("id")
+
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
             UPDATE users
@@ -106,6 +111,7 @@ def update_user(user_id: str, payload: UserUpdate):
                 phone_number = %s,
                 password_hash = COALESCE(%s, password_hash),
                 is_active = COALESCE(%s, is_active),
+                updated_by = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
             RETURNING id, organization_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at;
@@ -116,6 +122,7 @@ def update_user(user_id: str, payload: UserUpdate):
             payload.phone_number.strip() if payload.phone_number else None,
             pw_hash,
             payload.is_active,
+            updater_id,
             user_id
         ))
         row = cur.fetchone()
@@ -148,15 +155,18 @@ def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
             detail="Operation rejected: You cannot delete your currently active account."
         )
 
+    deleter_id = current_user.get("id")
+
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
             UPDATE users
             SET is_deleted = TRUE,
                 deleted_at = CURRENT_TIMESTAMP,
+                deleted_by = %s,
                 is_active = FALSE
             WHERE id = %s AND is_deleted IS NOT TRUE
             RETURNING id, email, first_name, last_name;
-        """, (user_id,))
+        """, (deleter_id, user_id))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")

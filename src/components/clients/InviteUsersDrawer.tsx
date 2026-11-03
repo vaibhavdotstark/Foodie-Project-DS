@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Mail, AlertCircle, Loader2, ShieldCheck, Clock } from 'lucide-react';
+import { X, Plus, Trash2, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { invitationsApi, sitesApi } from '../../services/api';
 import type { Organization, User, UserRole, UserInvitation, Site } from '../../types';
@@ -211,26 +211,6 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
                 <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-[#E32032] flex items-center gap-2.5">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span className="font-medium">{error}</span>
-                </div>
-              )}
-
-              {/* Owner assignment status banner */}
-              {hasExistingOwner && (
-                <div className="p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl text-xs text-[#92400E] flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    {activeOwner ? (
-                      <ShieldCheck className="w-4 h-4 text-[#D97706] shrink-0" />
-                    ) : (
-                      <Clock className="w-4 h-4 text-[#D97706] shrink-0" />
-                    )}
-                    <span className="font-medium">
-                      <strong>Organisation Owner:</strong>{' '}
-                      {activeOwner ? 'Active' : 'Invitation pending'} ({existingOwnerEmail})
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#B45309] bg-[#FEF3C7] border border-[#FDE68A] px-2 py-0.5 rounded shrink-0">
-                    1 owner limit
-                  </span>
                 </div>
               )}
 

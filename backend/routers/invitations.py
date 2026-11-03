@@ -289,7 +289,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
             SELECT i.id, i.organization_id, i.site_id, i.email, i.role, i.status, i.expires_at,
-                   o.company_name, o.client_code
+                   o.company_name, o.client_code, i.invited_by
             FROM user_invitations i
             JOIN organizations o ON i.organization_id = o.id
             WHERE i.token = %s;
@@ -298,7 +298,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invitation token.")
 
-        invite_id, org_id, site_id, email, role, status_val, expires_at, company_name, client_code = row
+        invite_id, org_id, site_id, email, role, status_val, expires_at, company_name, client_code, invited_by = row
 
         if status_val == "ACCEPTED":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invitation has already been accepted.")
@@ -346,19 +346,20 @@ def accept_invitation(payload: AcceptInvitationRequest):
                     role = %s,
                     phone_number = COALESCE(%s, phone_number),
                     is_active = TRUE,
+                    updated_by = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
                 RETURNING id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at;
-            """, (org_id, site_id, pw_hash, first_name, last_name, role, phone, user_id))
+            """, (org_id, site_id, pw_hash, first_name, last_name, role, phone, invited_by, user_id))
         else:
             cur.execute("""
                 INSERT INTO users (
-                    organization_id, site_id, email, password_hash, first_name, last_name, role, phone_number, is_active
+                    organization_id, site_id, email, password_hash, first_name, last_name, role, phone_number, is_active, created_by
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, TRUE
+                    %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s
                 )
                 RETURNING id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at;
-            """, (org_id, site_id, email.lower(), pw_hash, first_name, last_name, role, phone))
+            """, (org_id, site_id, email.lower(), pw_hash, first_name, last_name, role, phone, invited_by))
 
         user_row = cur.fetchone()
         cols = [desc[0] for desc in cur.description]

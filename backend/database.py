@@ -134,6 +134,9 @@ def init_db():
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES users(id) ON DELETE SET NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
             ALTER TABLE users DROP COLUMN IF EXISTS assigned_site_id;
             ALTER TABLE organizations ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) DEFAULT 'Corporate';
             ALTER TABLE organizations ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';
@@ -162,14 +165,14 @@ def init_db():
                 site_code VARCHAR(50) NOT NULL,
                 site_name VARCHAR(100) NOT NULL,
                 address TEXT,
-                latitude DOUBLE PRECISION,
-                longitude DOUBLE PRECISION,
                 timezone VARCHAR(50) DEFAULT 'Australia/Adelaide',
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT unique_org_site_code UNIQUE (organization_id, site_code)
             );
+            ALTER TABLE sites DROP COLUMN IF EXISTS latitude;
+            ALTER TABLE sites DROP COLUMN IF EXISTS longitude;
             CREATE INDEX IF NOT EXISTS idx_sites_organization_id ON sites(organization_id);
 
             ALTER TABLE machines ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites(id) ON DELETE SET NULL;

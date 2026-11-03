@@ -83,16 +83,14 @@ def create_site(
             )
 
         cur.execute("""
-            INSERT INTO sites (organization_id, site_code, site_name, address, latitude, longitude, timezone, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO sites (organization_id, site_code, site_name, address, timezone, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING *;
         """, (
             payload.organization_id,
             normalized_code,
             payload.site_name.strip(),
             payload.address.strip(),
-            payload.latitude,
-            payload.longitude,
             payload.timezone or 'Australia/Adelaide',
             payload.is_active if payload.is_active is not None else True
         ))
@@ -131,8 +129,6 @@ def update_site(
             UPDATE sites
             SET site_name = COALESCE(%s, site_name),
                 address = COALESCE(%s, address),
-                latitude = COALESCE(%s, latitude),
-                longitude = COALESCE(%s, longitude),
                 timezone = COALESCE(%s, timezone),
                 is_active = COALESCE(%s, is_active),
                 updated_at = CURRENT_TIMESTAMP
@@ -141,8 +137,6 @@ def update_site(
         """, (
             payload.site_name.strip() if payload.site_name else None,
             payload.address.strip() if payload.address else None,
-            payload.latitude,
-            payload.longitude,
             payload.timezone,
             payload.is_active,
             site_id

@@ -121,8 +121,6 @@ export interface Site {
   site_code: string;
   site_name: string;
   address: string;
-  latitude?: number | null;
-  longitude?: number | null;
   timezone: string;
   is_active: boolean;
   created_at: string;
@@ -153,8 +151,6 @@ export interface SiteFormData {
   site_code: string;
   site_name: string;
   address: string;
-  latitude?: string;
-  longitude?: string;
   timezone: string;
   is_active: boolean;
 }
