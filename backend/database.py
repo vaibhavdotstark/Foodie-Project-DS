@@ -15,7 +15,6 @@ DB_NAME = os.getenv("DB_NAME", "foodie_db")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
-# Initialize PostgreSQL Connection Pool
 pool = SimpleConnectionPool(
     minconn=1,
     maxconn=20,
@@ -46,13 +45,24 @@ def init_db():
     current_db = (os.getenv("DB_NAME") or DB_NAME or "").lower()
     current_env = os.getenv("ENVIRONMENT", "").lower()
 
-    # Safety Guard: If connected to the AWS production database (foodie_prod), never insert demo or seed data
     if current_db in ("foodie_prod", "prod", "production") or current_env in ("prod", "production"):
         print(f"Connected to production database '{DB_NAME}'. Demo seed data insertion is completely disabled.")
         return
 
+    try:
+        enum_conn = pool.getconn()
+        enum_conn.set_isolation_level(0)
+        with enum_conn.cursor() as cur:
+            cur.execute("SELECT enumlabel FROM pg_enum WHERE enumtypid = 'user_role_enum'::regtype;")
+            existing_roles = {r[0] for r in cur.fetchall()}
+            for r in ('ORGANISATION_OWNER', 'SITE_MANAGER'):
+                if r not in existing_roles:
+                    cur.execute(f"ALTER TYPE user_role_enum ADD VALUE '{r}';")
+        pool.putconn(enum_conn)
+    except Exception:
+        pass
+
     with get_db_cursor(commit=True) as cur:
-        # 1. Machine Models Table (Dynamic, not hardcoded)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS machine_models (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -64,7 +74,6 @@ def init_db():
             );
         """)
 
-        # Seed standard Foodie composter models if not present
         models = [
             ('F25', 'Foodie F25', '25 kg/day'),
             ('F100', 'Foodie F100', '100 kg/day'),
@@ -78,7 +87,6 @@ def init_db():
                 ON CONFLICT (model_code) DO NOTHING;
             """, (code, name, cap))
 
-        # 2. Organization setup for local development
         cur.execute("SELECT id FROM organizations WHERE client_code = 'CL-0001';")
         org = cur.fetchone()
         if not org:
@@ -96,12 +104,10 @@ def init_db():
         else:
             org_id = org[0]
 
-        # 3. Default accounts for local development
         pw_hash = bcrypt.hashpw(b"admin123", bcrypt.gensalt(10)).decode('utf-8')
 
         cur.execute("DELETE FROM users WHERE email IN ('admin@powertech.example', 'sam.taylor@greenvalley.example', 'priya.shah@greenvalley.example');")
 
-        # OEM Manager
         cur.execute("SELECT id FROM users WHERE LOWER(email) = 'oem@gmail.com';")
         if not cur.fetchone():
             cur.execute("""
@@ -109,7 +115,6 @@ def init_db():
                 VALUES (NULL, 'oem@gmail.com', %s, 'OEM', 'Manager', 'OEM_MANAGER', '+61 8 8000 0001', true);
             """, (pw_hash,))
 
-        # Site Admin
         cur.execute("SELECT id FROM users WHERE LOWER(email) = 'siteadmin@gmail.com';")
         if not cur.fetchone():
             cur.execute("""
@@ -117,7 +122,6 @@ def init_db():
                 VALUES (%s, 'siteadmin@gmail.com', %s, 'Site', 'Admin', 'SITE_ADMIN', '+61 422 111 222', true);
             """, (org_id, pw_hash))
 
-        # Operator
         cur.execute("SELECT id FROM users WHERE LOWER(email) = 'operator@gmail.com';")
         if not cur.fetchone():
             cur.execute("""
@@ -125,7 +129,6 @@ def init_db():
                 VALUES (%s, 'operator@gmail.com', %s, 'Composter', 'Operator', 'OPERATOR', '+61 433 222 333', true);
             """, (org_id, pw_hash))
 
-        # Ensure schema columns and migrations exist
         cur.execute("""
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;
@@ -149,12 +152,34 @@ def init_db():
             ALTER TABLE machines ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
             ALTER TABLE machines ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
             ALTER TABLE machines DROP COLUMN IF EXISTS plc_ip;
-            ALTER TABLE machines DROP COLUMN IF EXISTS site_id;
-            ALTER TABLE machine_leases DROP COLUMN IF EXISTS site_id;
-            DROP TABLE IF EXISTS sites CASCADE;
         """)
 
-        # 4. Machines table setup for local development
+        # Physical sites table and tenant hierarchy relationships
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sites (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+                site_code VARCHAR(50) NOT NULL,
+                site_name VARCHAR(100) NOT NULL,
+                address TEXT,
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
+                timezone VARCHAR(50) DEFAULT 'Australia/Adelaide',
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT unique_org_site_code UNIQUE (organization_id, site_code)
+            );
+            CREATE INDEX IF NOT EXISTS idx_sites_organization_id ON sites(organization_id);
+
+            ALTER TABLE machines ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites(id) ON DELETE SET NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites(id) ON DELETE SET NULL;
+            ALTER TABLE user_invitations ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES sites(id) ON DELETE SET NULL;
+            CREATE INDEX IF NOT EXISTS idx_machines_site_id ON machines(site_id);
+            CREATE INDEX IF NOT EXISTS idx_users_site_id ON users(site_id);
+            CREATE INDEX IF NOT EXISTS idx_user_invitations_site_id ON user_invitations(site_id);
+        """)
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS machines (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -183,7 +208,6 @@ def init_db():
             );
         """)
 
-        # 5. Machine Leases Table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS machine_leases (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -199,7 +223,23 @@ def init_db():
             );
         """)
 
-        # Ensure seed machines exist if table is empty
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_invitations (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+                email VARCHAR(255) NOT NULL,
+                role VARCHAR(50) NOT NULL,
+                token VARCHAR(255) UNIQUE NOT NULL,
+                status VARCHAR(50) DEFAULT 'PENDING',
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                accepted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_invitations_token ON user_invitations(token);
+            CREATE INDEX IF NOT EXISTS idx_user_invitations_org_email ON user_invitations(organization_id, email);
+        """)
+
         cur.execute("SELECT COUNT(*) FROM machines;")
         if cur.fetchone()[0] == 0:
             cur.execute("SELECT id FROM machine_models WHERE model_code = 'F25';")
@@ -216,5 +256,25 @@ def init_db():
                 ('C002', 'C002', %s, 'Foodie F25', '25 kg/day', 'v2.1', %s, 'Carpark Bay 2', 'Offline', true),
                 ('C003', 'C003', %s, 'Foodie F25', '25 kg/day', 'v1.0', %s, 'Mawson Processing Hub', 'Offline', true);
             """, (f100_id, org_id, f25_id, org_id, f25_id, org_id))
+
+        # Default sites for initial demonstration client
+        if org_id:
+            cur.execute("SELECT COUNT(*) FROM sites WHERE organization_id = %s;", (org_id,))
+            if cur.fetchone()[0] == 0:
+                cur.execute("""
+                    INSERT INTO sites (organization_id, site_code, site_name, address)
+                    VALUES 
+                    (%s, 'SITE-01', 'Kitchen Loading Bay', 'Railway Ave, Mount Isa QLD 4825'),
+                    (%s, 'SITE-02', 'Mawson Processing Hub', '14 Industrial Circuit, Mount Isa QLD 4825')
+                    ON CONFLICT (organization_id, site_code) DO NOTHING;
+                """, (org_id, org_id))
+            cur.execute("""
+                UPDATE machines m
+                SET site_id = s.id
+                FROM sites s
+                WHERE m.organization_id = s.organization_id
+                  AND m.location_label = s.site_name
+                  AND m.site_id IS NULL;
+            """)
 
     print("Database connection initialized and verified successfully.")

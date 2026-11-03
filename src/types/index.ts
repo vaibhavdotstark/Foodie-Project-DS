@@ -1,4 +1,48 @@
-export type UserRole = 'OEM_MANAGER' | 'SITE_ADMIN' | 'OPERATOR';
+export type UserRole =
+  | 'OEM_MANAGER'
+  | 'ORGANISATION_OWNER'
+  | 'SITE_MANAGER'
+  | 'OPERATOR'
+  | 'SITE_ADMIN';
+
+export interface InvitationItem {
+  email: string;
+  role: UserRole;
+  site_id?: string;
+}
+
+export interface UserInvitation {
+  id: string;
+  organization_id: string;
+  site_id?: string;
+  site_name?: string;
+  email: string;
+  role: UserRole;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED';
+  expires_at: string;
+  created_at: string;
+  accepted_at?: string | null;
+  email_sent?: boolean;
+}
+
+export interface VerifyInvitationData {
+  valid: boolean;
+  email: string;
+  role: UserRole;
+  organization_id: string;
+  site_id?: string;
+  site_name?: string;
+  company_name: string;
+  client_code: string;
+}
+
+export interface AcceptInvitationPayload {
+  token: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  phone_number?: string;
+}
 
 export type MachineStatus = 'RUNNING' | 'IDLE' | 'HALTED' | 'MAINTENANCE' | 'UNKNOWN';
 
@@ -88,6 +132,8 @@ export interface Site {
 export interface User {
   id: string;
   organization_id: string | null;
+  site_id?: string | null;
+  site_name?: string | null;
   assigned_site_id: string | null;
   email: string;
   first_name: string;

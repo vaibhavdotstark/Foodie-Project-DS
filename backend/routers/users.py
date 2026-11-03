@@ -7,14 +7,37 @@ from ..auth import get_password_hash, get_current_user
 router = APIRouter(prefix="/api/users", tags=["Users"], dependencies=[Depends(get_current_user)])
 
 @router.get("", response_model=List[UserResponse])
-def get_all_users():
+def get_all_users(current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
+    user_site_id = current_user.get("site_id")
+
     with get_db_cursor() as cur:
-        cur.execute("""
-            SELECT id, organization_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at
-            FROM users
-            WHERE is_deleted IS NOT TRUE
-            ORDER BY first_name ASC;
-        """)
+        if user_role == "OEM_MANAGER":
+            cur.execute("""
+                SELECT u.id, u.organization_id, u.site_id, s.site_name, u.email, u.first_name, u.last_name, u.role, u.phone_number, u.is_active, u.last_login_at, u.created_at, u.updated_at
+                FROM users u
+                LEFT JOIN sites s ON u.site_id = s.id
+                WHERE u.is_deleted IS NOT TRUE
+                ORDER BY u.first_name ASC;
+            """)
+        elif user_role in ("ORGANISATION_OWNER", "SITE_ADMIN"):
+            cur.execute("""
+                SELECT u.id, u.organization_id, u.site_id, s.site_name, u.email, u.first_name, u.last_name, u.role, u.phone_number, u.is_active, u.last_login_at, u.created_at, u.updated_at
+                FROM users u
+                LEFT JOIN sites s ON u.site_id = s.id
+                WHERE u.is_deleted IS NOT TRUE AND u.organization_id = %s
+                ORDER BY u.first_name ASC;
+            """, (user_org_id,))
+        else: # SITE_MANAGER or OPERATOR
+            cur.execute("""
+                SELECT u.id, u.organization_id, u.site_id, s.site_name, u.email, u.first_name, u.last_name, u.role, u.phone_number, u.is_active, u.last_login_at, u.created_at, u.updated_at
+                FROM users u
+                LEFT JOIN sites s ON u.site_id = s.id
+                WHERE u.is_deleted IS NOT TRUE AND u.organization_id = %s AND (u.site_id = %s OR u.id = %s)
+                ORDER BY u.first_name ASC;
+            """, (user_org_id, user_site_id, current_user.get("id")))
+
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         results = []
@@ -23,6 +46,8 @@ def get_all_users():
             d["id"] = str(d["id"])
             if d.get("organization_id"):
                 d["organization_id"] = str(d["organization_id"])
+            if d.get("site_id"):
+                d["site_id"] = str(d["site_id"])
             results.append(UserResponse(**d))
         return results
 

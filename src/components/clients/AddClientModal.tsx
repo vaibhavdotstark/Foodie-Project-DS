@@ -46,7 +46,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  // Section 1: Client details
+  // Form state
   const [clientCode, setClientCode] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [onboardingDate, setOnboardingDate] = useState(getLocalToday());
@@ -55,7 +55,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   const [paymentTerms, setPaymentTerms] = useState('30 days');
   const [commsPreference, setCommsPreference] = useState('Email');
 
-  // Section 2: Contact details
   const [contactPoc, setContactPoc] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -63,7 +62,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   const [billingAddress, setBillingAddress] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
 
-  // Section 3: Add Foodie to the client
   const todayStr = getLocalToday();
   const [machineRows, setMachineRows] = useState<MachineRow[]>([
     {
@@ -74,14 +72,12 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     },
   ]);
 
-  // Available / Unmapped Machines from Fleet
   const [availableMachines, setAvailableMachines] = useState<Machine[]>([]);
   const [isLoadingMachines, setIsLoadingMachines] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -92,7 +88,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Prevent background body scrolling when open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -104,12 +99,10 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     };
   }, [isOpen]);
 
-  // Load next client code and available (unassigned) machines
   useEffect(() => {
     if (isOpen) {
       setIsLoadingMachines(true);
       setError(null);
-      // Ensure fields start clean
       setClientCode('');
       setCompanyName('');
       setTaxId('');
@@ -133,7 +126,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         },
       ]);
 
-      // Fetch next auto-generated client code (e.g. CL-0015)
       orgsApi
         .getNextCode()
         .then((res) => {
@@ -148,7 +140,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       machinesApi
         .getAll()
         .then((all) => {
-          // Assign Machine: Assign ONLY available machines (not assigned)
           const unassigned = all.filter((m) => !m.organization_id);
           setAvailableMachines(unassigned);
         })
@@ -167,7 +158,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Add another machine row
+  // Machine row handlers
   const handleAddMachineRow = () => {
     const today = new Date().toISOString().split('T')[0];
     setMachineRows((prev) => [
@@ -181,11 +172,9 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     ]);
   };
 
-  // Remove a machine row
   const handleRemoveMachineRow = (index: number) => {
     const today = new Date().toISOString().split('T')[0];
     if (machineRows.length === 1) {
-      // Clear row values instead of removing the single row
       setMachineRows([
         {
           machine_id: '',
@@ -199,7 +188,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     setMachineRows((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  // Update a machine row field
   const handleUpdateMachineRow = (
     index: number,
     field: keyof MachineRow,
@@ -220,6 +208,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     });
   };
 
+  // Create client organization
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -241,9 +230,12 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         setError('Please enter a valid phone number with at least 7 digits.');
         return;
       }
+      if (phoneNumber.trim().length > 25) {
+        setError('Phone number cannot exceed 25 characters.');
+        return;
+      }
     }
 
-    // Validate lease end date is not earlier than lease start date
     for (let i = 0; i < machineRows.length; i++) {
       const row = machineRows[i];
       if (row.machine_id.trim() && row.lease_start_date && row.lease_end_date) {
@@ -257,7 +249,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     setIsSubmitting(true);
     setError(null);
 
-    // Format assigned machines: filter out rows with no machine selected
     const validAssignedMachines = machineRows
       .filter((m) => m.machine_id.trim() !== '')
       .map((m) => ({
@@ -267,7 +258,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         lease_end_date: m.lease_end_date.trim() || undefined,
       }));
 
-    // If shipping address is empty or "Same as billing", sync with billing address
     const trimmedBilling = billingAddress.trim();
     const trimmedShipping = shippingAddress.trim();
     const isSameAsBilling =
@@ -301,7 +291,6 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       onSuccess(created);
       onClose();
 
-      // Reset form states
       setClientCode('');
       setCompanyName('');
       setTaxId('');
@@ -334,6 +323,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       role="dialog"
       aria-modal="true"
     >
+      
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/45 backdrop-blur-2xs transition-opacity animate-in fade-in duration-300"
@@ -341,10 +331,11 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         aria-hidden="true"
       />
 
-      {/* Slide-over Container: docked to the right edge and opens from right to left */}
+      
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-4 sm:pl-10">
         <div className="w-screen max-w-4xl bg-white shadow-2xl flex flex-col border-l border-[#E3E4E6] animate-in slide-in-from-right duration-300">
-          {/* Header (Docked at top) */}
+          
+          {/* Drawer header */}
           <div className="px-8 py-5 border-b border-[#E3E4E6] flex items-center justify-between bg-white flex-shrink-0">
             <div>
               <h3 className="text-xl font-bold text-[#171717] tracking-tight">
@@ -364,7 +355,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
             </button>
           </div>
 
-          {/* Error Alert */}
+          
           {error && (
             <div className="mx-8 mt-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-[#E32032] flex items-center gap-2.5 flex-shrink-0">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -372,21 +363,20 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
             </div>
           )}
 
-          {/* Form Body (Scrollable from top to bottom) */}
+          
           <form
             id="add-new-client-form"
             onSubmit={handleSubmit}
             className="flex-1 overflow-y-auto p-8 space-y-6 text-xs"
           >
-            {/* ====================================================================
-                SECTION 1: CLIENT DETAILS
-                ==================================================================== */}
+            
+            {/* Client details */}
             <div>
               <h4 className="text-sm font-bold text-[#171717] mb-3.5">
                 Client details
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Account number / Client ID */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Client ID
@@ -399,7 +389,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Full name / Company name */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Full name / Company name
@@ -414,7 +404,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Onboarding date */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Onboarding date
@@ -427,7 +417,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Business type (Individual / Corporate) */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Business type (Individual / Corporate)
@@ -444,7 +434,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   </select>
                 </div>
 
-                {/* Tax ID (ABN / GST) */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Tax ID (ABN / GST)
@@ -458,7 +448,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Payment terms */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Payment terms
@@ -474,7 +464,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   </select>
                 </div>
 
-                {/* Comms preference */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Comms preference
@@ -493,15 +483,14 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
 
             <div className="border-t border-[#E5E7EB]" />
 
-            {/* ====================================================================
-                SECTION 2: CONTACT DETAILS
-                ==================================================================== */}
+            
+            {/* Contact details */}
             <div>
               <h4 className="text-sm font-bold text-[#171717] mb-3.5">
                 Contact details
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Point of contact */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Point of contact
@@ -515,16 +504,22 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Phone number */}
+                
                 <div>
-                  <label className="block text-xs font-semibold text-[#171717] mb-1.5">
-                    Phone number
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-[#171717]">
+                      Phone number
+                    </label>
+                    <span className="text-[10px] text-[#888888]">
+                      {phoneNumber.length}/25
+                    </span>
+                  </div>
                   <input
                     type="tel"
                     value={phoneNumber}
+                    maxLength={25}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/[^0-9+\s()-]/g, '');
+                      const clean = e.target.value.replace(/[^0-9+\s()-]/g, '').slice(0, 25);
                       setPhoneNumber(clean);
                     }}
                     onKeyDown={(e) => {
@@ -535,7 +530,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                       ) {
                         return;
                       }
-                      if (!/^[0-9+\s()-]$/.test(e.key)) {
+                      if (!/^[0-9+\s()-]$/.test(e.key) || phoneNumber.length >= 25) {
                         e.preventDefault();
                       }
                     }}
@@ -544,7 +539,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Email */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Email
@@ -559,7 +554,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Website */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Website
@@ -573,7 +568,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Billing address */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Billing address
@@ -587,7 +582,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   />
                 </div>
 
-                {/* Shipping address */}
+                
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
                     Shipping address
@@ -605,9 +600,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
 
             <div className="border-t border-[#E5E7EB]" />
 
-            {/* ====================================================================
-                SECTION 3: ADD FOODIE TO THE CLIENT
-                ==================================================================== */}
+            
             <div>
               <div className="mb-3">
                 <h4 className="text-sm font-bold text-[#171717]">
@@ -618,9 +611,9 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                 </p>
               </div>
 
-              {/* Machines Assignment Grid */}
+              
               <div className="border border-[#E3E4E6] rounded-xl overflow-hidden bg-white">
-                {/* Table Header */}
+                
                 <div className="bg-[#F8F9FA] border-b border-[#E3E4E6] px-4 py-2.5 grid grid-cols-12 gap-3 text-xs font-semibold text-[#374151]">
                   <div className="col-span-4">Serial Number</div>
                   <div className="col-span-3">Location</div>
@@ -629,14 +622,14 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   <div className="col-span-1 text-right"></div>
                 </div>
 
-                {/* Dynamic Rows */}
+                
                 <div className="divide-y divide-[#F2F2F2] p-2 space-y-2">
                   {machineRows.map((row, index) => (
                     <div
                       key={index}
                       className="grid grid-cols-12 gap-3 items-center px-2 py-1"
                     >
-                      {/* Serial Number Dropdown */}
+                      
                       <div className="col-span-4">
                         <select
                           value={row.machine_id}
@@ -655,7 +648,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                         </select>
                       </div>
 
-                      {/* Location */}
+                      
                       <div className="col-span-3">
                         <input
                           type="text"
@@ -668,7 +661,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                         />
                       </div>
 
-                      {/* Lease start date */}
+                      
                       <div className="col-span-2">
                         <input
                           type="date"
@@ -681,7 +674,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                         />
                       </div>
 
-                      {/* Lease end date */}
+                      
                       <div className="col-span-2">
                         <input
                           type="date"
@@ -694,7 +687,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                         />
                       </div>
 
-                      {/* Remove Action */}
+                      
                       <div className="col-span-1 text-right">
                         {machineRows.length > 1 && (
                           <button
@@ -711,7 +704,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                   ))}
                 </div>
 
-                {/* Add Another Machine Button */}
+                
                 <div className="p-3 border-t border-[#F2F2F2] bg-[#FAFAFA]">
                   <button
                     type="button"
@@ -726,7 +719,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
             </div>
           </form>
 
-          {/* Footer Actions (Docked at bottom right) */}
+          
+          {/* Footer actions */}
           <div className="px-8 py-4 border-t border-[#E3E4E6] bg-white flex items-center justify-end gap-3 flex-shrink-0">
             <button
               type="button"

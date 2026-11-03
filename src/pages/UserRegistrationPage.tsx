@@ -18,7 +18,6 @@ export const UserRegistrationPage: React.FC = () => {
 
   const isOem = currentUser?.role === 'OEM_MANAGER';
 
-  // Form State for Creating New User
   const initialForm: UserFormData = {
     organization_id: '',
     assigned_site_id: '',
@@ -34,7 +33,6 @@ export const UserRegistrationPage: React.FC = () => {
   const [formData, setFormData] = useState<UserFormData>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
 
-  // Modal State for Viewing & Editing an Existing User
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<'view' | 'edit'>('view');
   const [editFormData, setEditFormData] = useState<{
@@ -54,7 +52,6 @@ export const UserRegistrationPage: React.FC = () => {
   });
   const [editErrors, setEditErrors] = useState<{ first_name?: string; last_name?: string }>({});
 
-  // Load live users, sites, and organizations from PostgreSQL
   const loadData = async () => {
     try {
       setIsLoading(true);
@@ -87,9 +84,6 @@ export const UserRegistrationPage: React.FC = () => {
     }));
   }, [isOem]);
 
-  // Role Options Scoped by Logged-in User Authority
-  // OEM Manager can ONLY provision Site Admin (Facility Manager)
-  // Site Admin can ONLY provision Operator (Floor Technician)
   const roleOptions: { value: UserRole; label: string }[] = isOem
     ? [
         { value: 'SITE_ADMIN', label: 'Site Admin — Facility manager' },
@@ -104,9 +98,6 @@ export const UserRegistrationPage: React.FC = () => {
     ? [{ value: 'SITE_ADMIN', label: 'Site Admin — Facility manager' }]
     : roleOptions;
 
-  // Scoped Users Visible in Management Table
-  // OEM Manager can view all system users (OEM, Site Admin, Operator)
-  // Site Admin strictly only views and manages Operator accounts for facilities (OEM Manager and Site Admin hidden)
   const visibleUsers = users.filter((u) => {
     if (isOem) {
       return true;
@@ -150,8 +141,8 @@ export const UserRegistrationPage: React.FC = () => {
       }
     }
 
-    if (formData.phone_number && !/^\+?[0-9\s-]{8,16}$/.test(formData.phone_number.trim())) {
-      errs.phone_number = 'Enter a valid phone number (e.g. +61 411 222 333)';
+    if (formData.phone_number && (!/^\+?[0-9\s()-]{7,25}$/.test(formData.phone_number.trim()) || formData.phone_number.trim().length > 25)) {
+      errs.phone_number = 'Enter a valid phone number (e.g. +61 411 222 333, max 25 characters)';
     }
 
     if (!formData.password) {
@@ -213,7 +204,6 @@ export const UserRegistrationPage: React.FC = () => {
     }
   };
 
-  // Open View Modal (Read-only Details Tab)
   const handleOpenView = (userToView: User) => {
     setEditingUser(userToView);
     setActiveModalTab('view');
@@ -228,7 +218,6 @@ export const UserRegistrationPage: React.FC = () => {
     setEditErrors({});
   };
 
-  // Open Edit Modal (Editable Form Tab)
   const handleOpenEdit = (userToEdit: User) => {
     setEditingUser(userToEdit);
     setActiveModalTab('edit');
@@ -243,7 +232,6 @@ export const UserRegistrationPage: React.FC = () => {
     setEditErrors({});
   };
 
-  // Save Edit Changes (Email is strictly NOT editable)
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
@@ -300,13 +288,14 @@ export const UserRegistrationPage: React.FC = () => {
 
   const rolePillColors: Record<UserRole, string> = {
     OEM_MANAGER: 'bg-purple-100 text-purple-800 border-purple-200',
+    ORGANISATION_OWNER: 'bg-red-50 text-[#E32032] border-red-200',
+    SITE_MANAGER: 'bg-blue-50 text-blue-800 border-blue-200',
     SITE_ADMIN: 'bg-red-50 text-[#E32032] border-red-200',
     OPERATOR: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   };
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Page Title & Clean Subtitle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#E3E4E6]">
         <div>
           <h1 className="text-xl font-extrabold text-[#171717] flex items-center gap-2">
@@ -326,7 +315,6 @@ export const UserRegistrationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Success Notification Banner */}
       {successMessage && (
         <div className="bg-[#D7FFE6] border border-[#00C951] text-[#0A7135] px-4 py-3 rounded-lg text-xs font-semibold flex items-center gap-2 shadow-xs transition-all">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
@@ -334,7 +322,6 @@ export const UserRegistrationPage: React.FC = () => {
         </div>
       )}
 
-      {/* User Registration Form Card (Create) */}
       <div className="bg-white border border-[#E3E4E6] rounded-xl shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-[#E3E4E6] bg-[#FAFAFA] flex items-center justify-between">
           <h2 className="text-sm font-bold text-[#171717]">New User Registration</h2>
@@ -383,7 +370,6 @@ export const UserRegistrationPage: React.FC = () => {
             />
           </div>
 
-          {/* Role Selection (Scoped by authority) */}
           <SelectField
             label="Role"
             required
@@ -397,7 +383,6 @@ export const UserRegistrationPage: React.FC = () => {
             }
           />
 
-          {/* Organization & Site Scope */}
           {formData.role !== 'OEM_MANAGER' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 border border-[#E3E4E6] rounded-lg">
               <SelectField
@@ -419,7 +404,6 @@ export const UserRegistrationPage: React.FC = () => {
             </div>
           )}
 
-          {/* Password Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#E3E4E6]">
             <InputField
               label="Password"
@@ -464,7 +448,6 @@ export const UserRegistrationPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Live Users Table (Read, Update, Delete) */}
       <div className="bg-white border border-[#E3E4E6] rounded-xl shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-[#E3E4E6] bg-[#FAFAFA] flex items-center justify-between">
           <div>
@@ -554,7 +537,6 @@ export const UserRegistrationPage: React.FC = () => {
                   </td>
                   <td className="py-3.5 px-5 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {/* View Action Button */}
                       <button
                         type="button"
                         onClick={() => handleOpenView(u)}
@@ -565,7 +547,6 @@ export const UserRegistrationPage: React.FC = () => {
                         <span>View</span>
                       </button>
 
-                      {/* Edit Action Button */}
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(u)}
@@ -576,7 +557,6 @@ export const UserRegistrationPage: React.FC = () => {
                         <span>Edit</span>
                       </button>
 
-                      {/* Deactivate / Delete Action Button */}
                       <button
                         type="button"
                         onClick={() => handleDelete(u.id, `${u.first_name} ${u.last_name}`)}
@@ -594,11 +574,9 @@ export const UserRegistrationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* View & Edit User Modal (Separated View Tab and Edit Tab) */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div className="bg-white border border-[#E3E4E6] rounded-xl shadow-lg w-full max-w-lg overflow-hidden animate-fadeIn">
-            {/* Modal Header & Tabs */}
             <div className="px-6 pt-4 pb-0 border-b border-[#E3E4E6] bg-[#FAFAFA]">
               <div className="flex items-center justify-between pb-3">
                 <div className="flex items-center gap-2">
@@ -620,7 +598,6 @@ export const UserRegistrationPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Distinct Tab Bar: View Tab vs Edit Tab */}
               <div className="flex items-center gap-6 text-xs font-bold border-b border-transparent -mb-px">
                 <button
                   type="button"
@@ -649,7 +626,6 @@ export const UserRegistrationPage: React.FC = () => {
               </div>
             </div>
 
-            {/* TAB 1: READ-ONLY VIEW TAB */}
             {activeModalTab === 'view' && (
               <div className="p-6 flex flex-col gap-4">
                 <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-[#E3E4E6]">
@@ -733,10 +709,8 @@ export const UserRegistrationPage: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 2: EDITABLE FORM TAB */}
             {activeModalTab === 'edit' && (
               <form onSubmit={handleSaveEdit} className="p-6 flex flex-col gap-4">
-                {/* Email: Immutable / Non-editable login identifier */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-[#171717] flex items-center justify-between">
                     <span>Email Address (Login Identifier)</span>
@@ -752,7 +726,6 @@ export const UserRegistrationPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Editable Name */}
                 <div className="grid grid-cols-2 gap-4">
                   <InputField
                     label="First Name"
@@ -770,14 +743,12 @@ export const UserRegistrationPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Editable Phone */}
                 <InputField
                   label="Phone Number"
                   value={editFormData.phone_number}
                   onChange={(e) => setEditFormData({ ...editFormData, phone_number: e.target.value })}
                 />
 
-                {/* Editable Role (Scoped by caller) */}
                 <SelectField
                   label="Role"
                   required
@@ -786,7 +757,6 @@ export const UserRegistrationPage: React.FC = () => {
                   onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as UserRole })}
                 />
 
-                {/* Editable Assigned Site */}
                 {editFormData.role !== 'OEM_MANAGER' && (
                   <SelectField
                     label="Assigned Facility Site"
@@ -797,7 +767,6 @@ export const UserRegistrationPage: React.FC = () => {
                   />
                 )}
 
-                {/* Editable Status */}
                 <label className="flex items-center gap-2 cursor-pointer select-none pt-2 border-t border-[#E3E4E6]">
                   <input
                     type="checkbox"
@@ -808,7 +777,6 @@ export const UserRegistrationPage: React.FC = () => {
                   <span className="text-xs font-semibold text-[#171717]">Account is Active</span>
                 </label>
 
-                {/* Modal Actions */}
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E3E4E6] mt-2">
                   <button
                     type="button"

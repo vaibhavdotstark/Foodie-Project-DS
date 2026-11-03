@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import init_db
-from .routers import auth, users, organizations, search, machines, dashboard
+from .routers import auth, users, organizations, search, machines, dashboard, invitations, sites
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,6 +50,8 @@ app.include_router(organizations.router)
 app.include_router(search.router)
 app.include_router(machines.router)
 app.include_router(dashboard.router)
+app.include_router(invitations.router)
+app.include_router(sites.router)
 
 @app.get("/api/machine-models", tags=["Machines"])
 def get_machine_models_alias():

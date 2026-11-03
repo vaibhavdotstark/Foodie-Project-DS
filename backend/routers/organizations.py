@@ -71,11 +71,9 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
     code = payload.client_code.strip().upper()
     company = payload.company_name.strip()
     
-    # Safe date sanitization
     onboarding_d = payload.onboarding_date.strip() if payload.onboarding_date and payload.onboarding_date.strip() else None
 
     with get_db_cursor(commit=True) as cur:
-        # Check uniqueness of client_code across all records (including archived/deleted)
         cur.execute("SELECT id, is_deleted FROM organizations WHERE UPPER(client_code) = %s;", (code,))
         row = cur.fetchone()
         if row:
@@ -90,7 +88,6 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
                     detail=f"Client Code '{code}' is already registered."
                 )
 
-        # Check uniqueness of company_name
         cur.execute("SELECT id FROM organizations WHERE LOWER(company_name) = %s AND is_deleted IS NOT TRUE;", (company.lower(),))
         if cur.fetchone():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Company name '{company}' is already registered.")
@@ -136,43 +133,6 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
         if d.get("onboarding_date"):
             d["onboarding_date"] = str(d["onboarding_date"])
 
-        # Automatically create or link client login user account with default password '12345'
-        if payload.email and payload.email.strip():
-            clean_email = payload.email.strip().lower()
-            cur.execute("SELECT id FROM users WHERE LOWER(email) = %s;", (clean_email,))
-            existing_user = cur.fetchone()
-            pw_hash = get_password_hash("12345")
-            poc_name = (payload.contact_poc or payload.company_name or "Client Admin").strip()
-            name_parts = poc_name.split(maxsplit=1)
-            first_name = name_parts[0]
-            last_name = name_parts[1] if len(name_parts) > 1 else ""
-
-            if existing_user:
-                cur.execute("""
-                    UPDATE users
-                    SET organization_id = %s,
-                        password_hash = %s,
-                        role = 'SITE_ADMIN',
-                        is_active = TRUE
-                    WHERE id = %s;
-                """, (new_org_id, pw_hash, existing_user[0]))
-            else:
-                cur.execute("""
-                    INSERT INTO users (
-                        organization_id, email, password_hash, first_name, last_name, role, phone_number, is_active
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, 'SITE_ADMIN', %s, TRUE
-                    );
-                """, (
-                    new_org_id,
-                    clean_email,
-                    pw_hash,
-                    first_name,
-                    last_name,
-                    payload.phone_number.strip() if payload.phone_number else None
-                ))
-
-        # Assign machines and create leases if specified in payload
         if payload.assigned_machines:
             for m in payload.assigned_machines:
                 if m.machine_id and m.machine_id.strip():
@@ -181,14 +141,12 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
                     l_start = m.lease_start_date.strip() if m.lease_start_date and m.lease_start_date.strip() else None
                     l_end = m.lease_end_date.strip() if m.lease_end_date and m.lease_end_date.strip() else None
 
-                    # Parse or default start date
                     try:
                         start_dt = datetime.strptime(l_start, "%Y-%m-%d").date() if l_start else date.today()
                     except ValueError:
                         start_dt = date.today()
                     l_start_str = start_dt.strftime("%Y-%m-%d")
 
-                    # Calculate 5 years later if end date is missing or empty
                     if not l_end:
                         try:
                             end_dt = start_dt.replace(year=start_dt.year + 5)
@@ -211,7 +169,6 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
                                 end_dt = start_dt.replace(month=2, day=28, year=start_dt.year + 5)
                             l_end_str = end_dt.strftime("%Y-%m-%d")
 
-                    # Find machine id
                     cur.execute("SELECT id FROM machines WHERE id::text = %s OR machine_code = %s OR serial_number = %s;", (m_ident, m_ident, m_ident))
                     m_row = cur.fetchone()
                     if m_row:
@@ -223,7 +180,6 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
                             WHERE id = %s;
                         """, (new_org_id, loc, mach_uuid))
 
-                        # Create machine lease record
                         lease_ref = f"LSE-{code}-{m_ident[:4]}"
                         cur.execute("""
                             INSERT INTO machine_leases (
@@ -291,13 +247,9 @@ def delete_organization(org_id: str, current_user: dict = Depends(get_current_us
             detail="Access denied: Only OEM Managers can delete client organizations."
         )
     with get_db_cursor(commit=True) as cur:
-        # Unmap machines assigned to this client (retaining machines in fleet inventory as available)
         cur.execute("UPDATE machines SET organization_id = NULL WHERE organization_id = %s;", (org_id,))
-        # Update leases in machine_leases
         cur.execute("UPDATE machine_leases SET lease_status = 'Terminated' WHERE organization_id = %s;", (org_id,))
-        # Unmap users assigned to this client
         cur.execute("UPDATE users SET organization_id = NULL WHERE organization_id = %s;", (org_id,))
-        # Soft delete: flagged as deleted in PostgreSQL while preserving original client_code
         cur.execute("""
             UPDATE organizations
             SET is_deleted = TRUE,

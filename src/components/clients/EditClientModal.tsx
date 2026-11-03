@@ -16,6 +16,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  // Form state
   const [formData, setFormData] = useState({
     company_name: '',
     business_type: 'Corporate' as 'Corporate' | 'Individual',
@@ -25,6 +26,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     payment_terms: '14 days',
     contact_poc: '',
     email: '',
+    phone_number: '',
     website: '',
     billing_address: '',
   });
@@ -32,6 +34,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Populate form fields on client change
   useEffect(() => {
     if (client) {
       setFormData({
@@ -43,6 +46,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
         payment_terms: client.payment_terms || '14 days',
         contact_poc: client.contact_poc || '',
         email: client.email || '',
+        phone_number: client.phone_number || '',
         website: client.website || '',
         billing_address: client.billing_address || '',
       });
@@ -50,7 +54,6 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     }
   }, [client]);
 
-  // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -61,7 +64,6 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Lock body scroll
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -83,6 +85,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     if (error) setError(null);
   };
 
+  // Update client details
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.company_name.trim()) {
@@ -92,6 +95,17 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     if (!formData.email.trim()) {
       setError('Primary contact email is required.');
       return;
+    }
+    if (formData.phone_number.trim()) {
+      const digitsOnly = formData.phone_number.replace(/\D/g, '');
+      if (digitsOnly.length < 7) {
+        setError('Please enter a valid phone number with at least 7 digits.');
+        return;
+      }
+      if (formData.phone_number.trim().length > 25) {
+        setError('Phone number cannot exceed 25 characters.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -107,6 +121,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
         payment_terms: formData.payment_terms,
         contact_poc: formData.contact_poc.trim() || undefined,
         email: formData.email.trim(),
+        phone_number: formData.phone_number.trim() || undefined,
         website: formData.website.trim() || undefined,
         billing_address: formData.billing_address.trim() || undefined,
       });
@@ -125,6 +140,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
       role="dialog"
       aria-modal="true"
     >
+      
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -132,10 +148,10 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
         aria-hidden="true"
       />
 
-      {/* Slide-over Drawer (Right to Left) */}
+      
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 pointer-events-none">
         <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col pointer-events-auto transform transition-transform duration-200 ease-in-out animate-in slide-in-from-right">
-          {/* Header */}
+          
           <div className="px-8 py-6 border-b border-[#E5E7EB] flex items-start justify-between bg-white shrink-0">
             <div>
               <h2 className="text-xl font-bold text-[#111827] tracking-tight">
@@ -155,7 +171,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
             </button>
           </div>
 
-          {/* Drawer Body (Scrollable) */}
+          
           <div className="flex-1 overflow-y-auto px-8 py-6 space-y-7">
             {error && (
               <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2.5 text-xs text-[#E32032] font-medium">
@@ -165,14 +181,15 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
             )}
 
             <form id="edit-client-form" onSubmit={handleSubmit} className="space-y-7">
-              {/* Section 1: Client details */}
+              
+              {/* Client details */}
               <div>
                 <h3 className="text-sm font-bold text-[#111827] tracking-tight mb-4">
                   Client details
                 </h3>
 
                 <div className="space-y-4">
-                  {/* Row 1: Full name, Business type, Tax ID */}
+                  
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-[#374151] mb-1.5 h-8 flex items-end">
@@ -230,7 +247,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Row 2: Onboarding date, Comms preference, Payment terms */}
+                  
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
@@ -301,14 +318,15 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                 </div>
               </div>
 
-              {/* Section 2: Contact details */}
+              
+              {/* Contact details */}
               <div>
                 <h3 className="text-sm font-bold text-[#111827] tracking-tight mb-4">
                   Contact details
                 </h3>
 
                 <div className="space-y-4">
-                  {/* Row 1: Point of contact, Email, Website */}
+                  
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
@@ -352,10 +370,34 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Row 2: Billing address */}
+                  
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      <div className="flex items-center justify-between mb-1.5 h-5">
+                        <label className="block text-xs font-medium text-[#374151]">
+                          Phone number
+                        </label>
+                        <span className="text-[10px] text-[#888888]">
+                          {formData.phone_number.length}/25
+                        </span>
+                      </div>
+                      <input
+                        type="tel"
+                        name="phone_number"
+                        maxLength={25}
+                        value={formData.phone_number}
+                        onChange={(e) => {
+                          const clean = e.target.value.replace(/[^0-9+\s()-]/g, '').slice(0, 25);
+                          setFormData((prev) => ({ ...prev, phone_number: clean }));
+                          if (error) setError(null);
+                        }}
+                        placeholder="+61 400 000 000"
+                        className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 h-5 flex items-end">
                         Billing address
                       </label>
                       <input
@@ -373,7 +415,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
             </form>
           </div>
 
-          {/* Footer Actions */}
+          
+          {/* Footer actions */}
           <div className="px-8 py-4 border-t border-[#E5E7EB] bg-white flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"

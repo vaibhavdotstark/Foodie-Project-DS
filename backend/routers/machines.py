@@ -12,6 +12,7 @@ SQL_SELECT_MACHINE_JOINED = """
     SELECT 
         m.id, m.machine_code, m.serial_number, m.model_id, m.model, m.capacity, m.hardware_version,
         m.organization_id, o.client_code, o.company_name,
+        m.site_id, s.site_name,
         m.location_label, m.location_description,
         m.plc_software_version, m.energy_meter_model, m.deodor_model, m.extractor_model,
         COALESCE(m.has_stairs, false) AS has_stairs, m.notes,
@@ -25,6 +26,7 @@ SQL_SELECT_MACHINE_JOINED = """
         m.created_at, m.updated_at
     FROM machines m
     LEFT JOIN organizations o ON m.organization_id = o.id
+    LEFT JOIN sites s ON m.site_id = s.id
     LEFT JOIN machine_leases ml ON m.id = ml.machine_id AND ml.lease_status = 'Active'
 """
 
@@ -35,6 +37,8 @@ def row_to_machine_dict(cols, row) -> dict:
         d["model_id"] = str(d["model_id"])
     if d.get("organization_id"):
         d["organization_id"] = str(d["organization_id"])
+    if d.get("site_id"):
+        d["site_id"] = str(d["site_id"])
     if d.get("created_by"):
         d["created_by"] = str(d["created_by"])
     if d.get("deleted_by"):
@@ -86,14 +90,29 @@ def get_machine_models():
 
 @router.get("", response_model=List[MachineResponse])
 def get_all_machines(current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
+    user_site_id = current_user.get("site_id")
+
     with get_db_cursor() as cur:
-        if current_user.get("role") != "OEM_MANAGER" and current_user.get("organization_id"):
+        if user_role == "OEM_MANAGER":
+            cur.execute(f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) ORDER BY m.created_at DESC, m.machine_code DESC;")
+        elif user_role in ("ORGANISATION_OWNER", "SITE_ADMIN"):
             cur.execute(
                 f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s ORDER BY m.created_at DESC, m.machine_code DESC;",
-                (current_user["organization_id"],)
+                (user_org_id,)
             )
-        else:
-            cur.execute(f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) ORDER BY m.created_at DESC, m.machine_code DESC;")
+        else: # SITE_MANAGER or OPERATOR scoped to their site
+            if user_site_id:
+                cur.execute(
+                    f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s AND m.site_id = %s ORDER BY m.created_at DESC, m.machine_code DESC;",
+                    (user_org_id, user_site_id)
+                )
+            else:
+                cur.execute(
+                    f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s ORDER BY m.created_at DESC, m.machine_code DESC;",
+                    (user_org_id,)
+                )
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         return [MachineResponse(**row_to_machine_dict(cols, r)) for r in rows]

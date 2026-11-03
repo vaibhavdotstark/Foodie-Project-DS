@@ -13,9 +13,11 @@ import {
   Trash2,
   Download,
   ShieldCheck,
+  UserPlus,
 } from 'lucide-react';
 import { MachineDetailDrawer } from '../machines/MachineDetailDrawer';
-import type { Organization, Machine, User } from '../../types';
+import { invitationsApi } from '../../services/api';
+import type { Organization, Machine, User, UserInvitation } from '../../types';
 
 export interface ClientDetailViewProps {
   client: Organization;
@@ -23,6 +25,7 @@ export interface ClientDetailViewProps {
   users: User[];
   onBack: () => void;
   onEdit: () => void;
+  onInviteUsers: () => void;
   onAssignMachine: () => void;
   onUnassignMachine: (machineId: string) => Promise<void>;
   onDeleteClient: () => void;
@@ -35,6 +38,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   users,
   onBack,
   onEdit,
+  onInviteUsers,
   onAssignMachine,
   onUnassignMachine,
   onDeleteClient,
@@ -45,8 +49,27 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [activeMachineMenuId, setActiveMachineMenuId] = useState<string | null>(null);
   const [viewingMachine, setViewingMachine] = useState<Machine | null>(null);
+  const [invitations, setInvitations] = useState<UserInvitation[]>([]);
 
   const headerMenuRef = useRef<HTMLDivElement>(null);
+
+  // Pending invitations loader
+  const loadInvitations = async () => {
+    if (!client?.id) return;
+    try {
+      const data = await invitationsApi.list(client.id);
+      setInvitations(data);
+    } catch (err) {
+      console.error('Failed to load client invitations:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadInvitations();
+    const handleUpdate = () => loadInvitations();
+    window.addEventListener('invitations-updated', handleUpdate);
+    return () => window.removeEventListener('invitations-updated', handleUpdate);
+  }, [client?.id]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -104,8 +127,34 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     return '100 kg/day';
   };
 
+  // Assigned fleet and client personnel
   const clientMachines = machines.filter((m) => m.organization_id === client.id);
   const clientUsers = users.filter((u) => u.organization_id === client.id);
+
+  const pendingInvitations = invitations.filter(
+    (inv) =>
+      inv.status === 'PENDING' &&
+      !clientUsers.some((u) => u.email.toLowerCase() === inv.email.toLowerCase())
+  );
+
+  const totalUsersCount = clientUsers.length + pendingInvitations.length;
+
+  const getRoleLabel = (role: string): string => {
+    switch (role) {
+      case 'ORGANISATION_OWNER':
+        return 'Organisation Owner';
+      case 'SITE_MANAGER':
+        return 'Site Manager';
+      case 'SITE_ADMIN':
+        return 'Organisation Owner';
+      case 'OPERATOR':
+        return 'Operator';
+      case 'OEM_MANAGER':
+        return 'OEM Asset Manager';
+      default:
+        return role;
+    }
+  };
 
   const runningMachines = clientMachines.filter(
     (m) =>
@@ -115,12 +164,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const runningCount = runningMachines.length;
   const idleCount = Math.max(0, clientMachines.length - runningCount);
 
-  const adminUsers = clientUsers.filter(
-    (u) => u.role === 'SITE_ADMIN' || u.role === 'OEM_MANAGER'
-  );
-  const adminCount = adminUsers.length;
-  const operatorCount = Math.max(0, clientUsers.length - adminCount);
-
   const offlineMachines = clientMachines.filter(
     (m) => (m.connectivity_status || '').toLowerCase() === 'offline'
   );
@@ -128,6 +171,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   const totalEnergyKwh = clientMachines.length > 0 ? clientMachines.length * 17 : 0;
 
+  // Export client details to CSV
   const handleExportDetails = () => {
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -160,7 +204,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5 max-w-[1400px] mx-auto select-none">
-      {/* 1. Breadcrumbs */}
+      {/* Breadcrumbs */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[#6B7280] pt-1">
         <button
           type="button"
@@ -173,7 +217,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         <span className="font-bold text-[#111827]">{client.company_name}</span>
       </nav>
 
-      {/* 2. Client Profile Card */}
+      {/* Client header card */}
       <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-xl bg-[#F3F4F6] text-[#111827] font-bold text-xl flex items-center justify-center border border-[#E5E7EB] shrink-0">
@@ -223,6 +267,15 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            type="button"
+            onClick={onInviteUsers}
+            className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-white" />
+            <span>Invite users</span>
+          </button>
+
           <button
             type="button"
             onClick={onEdit}
@@ -287,9 +340,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         </div>
       </div>
 
-      {/* 3. 4 Metric Cards */}
+      {/* Metric summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Machines Metric */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#6B7280]">Machines</span>
@@ -305,7 +357,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           </div>
         </div>
 
-        {/* Users Metric */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#6B7280]">Users</span>
@@ -314,14 +365,13 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             </div>
           </div>
           <div className="text-3xl font-bold text-[#111827] mt-2">
-            {clientUsers.length}
+            {totalUsersCount}
           </div>
           <div className="text-xs text-[#6B7280] mt-1">
-            {adminCount} Site Admin · {operatorCount} Operators
+            {clientUsers.length} active · {pendingInvitations.length} pending
           </div>
         </div>
 
-        {/* Open Alerts Metric */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#6B7280]">Open alerts</span>
@@ -337,7 +387,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           </div>
         </div>
 
-        {/* Energy Consumed Metric */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#6B7280]">Energy consumed</span>
@@ -355,9 +404,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Client Details & Contact Details Cards */}
+      {/* Client profile and contact details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left Card: Client details */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 sm:p-6 shadow-2xs">
           <h2 className="text-sm font-bold text-[#111827] mb-5 tracking-tight">
             Client details
@@ -422,7 +470,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           </div>
         </div>
 
-        {/* Right Card: Contact details */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 sm:p-6 shadow-2xs">
           <h2 className="text-sm font-bold text-[#111827] mb-5 tracking-tight">
             Contact details
@@ -481,9 +528,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         </div>
       </div>
 
-      {/* 5. Tabs & Tables Card */}
+      {/* Machine fleet and user tabs */}
       <div className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden shadow-2xs">
-        {/* Tab Headers */}
         <div className="border-b border-[#E5E7EB] px-6 flex items-center gap-8">
           <button
             type="button"
@@ -525,12 +571,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                   : 'bg-[#F3F4F6] text-[#6B7280]'
               }`}
             >
-              {clientUsers.length}
+              {totalUsersCount}
             </span>
           </button>
         </div>
 
-        {/* Tab 1: Machines */}
+        {/* Assigned machines */}
         {activeTab === 'MACHINES' && (
           <div>
             <div className="p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -583,7 +629,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
                       return (
                         <tr key={m.id} className="hover:bg-[#F9FAFB] transition-colors">
-                          {/* Serial Number */}
                           <td className="py-4 px-6 font-bold text-[#E32032]">
                             <button
                               type="button"
@@ -594,7 +639,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                             </button>
                           </td>
 
-                          {/* Model */}
                           <td className="py-4 px-6">
                             <div className="font-bold text-[#111827]">{m.model}</div>
                             <div className="text-[11px] text-[#6B7280]">
@@ -602,17 +646,14 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                             </div>
                           </td>
 
-                          {/* Location */}
                           <td className="py-4 px-6 text-[#111827]">
                             {m.location_label || m.site_name || 'Site A'}
                           </td>
 
-                          {/* Lease start date */}
                           <td className="py-4 px-6 text-[#111827]">
                             {formatDate(m.lease_start_date || m.created_at)}
                           </td>
 
-                          {/* Machine status */}
                           <td className="py-4 px-6">
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
@@ -630,7 +671,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                             </span>
                           </td>
 
-                          {/* Connectivity */}
                           <td className="py-4 px-6">
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
@@ -648,7 +688,6 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                             </span>
                           </td>
 
-                          {/* Actions */}
                           <td className="py-4 px-6 text-right relative">
                             <div className="inline-block relative" data-machine-menu>
                               <button
@@ -699,25 +738,44 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           </div>
         )}
 
-        {/* Tab 2: Users */}
+        {/* Client personnel */}
         {activeTab === 'USERS' && (
           <div>
-            <div className="p-6 pb-4">
-              <h3 className="text-sm font-bold text-[#111827]">Users</h3>
-              <p className="text-xs text-[#6B7280] mt-0.5">
-                Authorized personnel with access to this client's Foodie composter fleet.
-              </p>
+            <div className="p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-[#111827]">Users</h3>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  Authorized personnel with access to this client's Foodie composter fleet ({totalUsersCount} total · {clientUsers.length} active, {pendingInvitations.length} pending).
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onInviteUsers}
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Invite users</span>
+              </button>
             </div>
 
-            {clientUsers.length === 0 ? (
+            {totalUsersCount === 0 ? (
               <div className="p-12 text-center">
                 <div className="w-12 h-12 rounded-xl bg-[#F3F4F6] flex items-center justify-center text-[#9CA3AF] mx-auto mb-3">
                   <Users className="w-6 h-6" />
                 </div>
                 <h4 className="text-xs font-bold text-[#111827]">No users assigned</h4>
-                <p className="text-xs text-[#6B7280] mt-1 max-w-sm mx-auto">
-                  Personnel can be added in User Management to grant access to this organization.
+                <p className="text-xs text-[#6B7280] mt-1 max-w-sm mx-auto mb-4">
+                  Invite personnel such as the Organisation Owner or Site Operators to grant access to this organization.
                 </p>
+                <button
+                  type="button"
+                  onClick={onInviteUsers}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white cursor-pointer shadow-2xs"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Invite users</span>
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -732,30 +790,93 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]">
-                    {clientUsers.map((u) => (
-                      <tr key={u.id} className="hover:bg-[#F9FAFB] transition-colors">
-                        <td className="py-4 px-6 font-bold text-[#111827]">
-                          {u.first_name} {u.last_name}
-                        </td>
-                        <td className="py-4 px-6 text-[#6B7280]">{u.email}</td>
-                        <td className="py-4 px-6 text-[#6B7280]">{u.phone_number || '—'}</td>
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]">
-                            {u.role === 'SITE_ADMIN'
-                              ? 'Site Admin'
-                              : u.role === 'OPERATOR'
-                              ? 'Operator'
-                              : u.role}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-                            <span>Active</span>
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {clientUsers.map((u) => {
+                      const userInitials = `${u.first_name?.[0] || ''}${u.last_name?.[0] || ''}`.toUpperCase() || 'U';
+                      return (
+                        <tr key={u.id} className="hover:bg-[#F9FAFB] transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              <div className="w-7 h-7 rounded-full bg-[#FFEBEB] text-[#991B1B] text-xs font-bold flex items-center justify-center shrink-0">
+                                {userInitials}
+                              </div>
+                              <span className="font-bold text-[#111827]">
+                                {u.first_name} {u.last_name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 text-[#111827] font-medium">{u.email}</td>
+                          <td className="py-4 px-6 text-[#6B7280]">{u.phone_number || '—'}</td>
+                          <td className="py-4 px-6">
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]">
+                                {getRoleLabel(u.role)}
+                              </span>
+                              {u.site_name && (
+                                <span className="text-[10px] text-[#6B7280]">
+                                  {u.site_name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            {u.is_active ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                                <span>Active</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#F3F4F6] text-[#6B7280] border border-[#E5E7EB]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#9CA3AF]" />
+                                <span>Inactive</span>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {pendingInvitations.map((inv) => {
+                      const initial = (inv.email?.[0] || 'I').toUpperCase();
+                      return (
+                        <tr key={inv.id} className="hover:bg-[#FFFDF7] transition-colors bg-[#FFFCF5]">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              <div className="w-7 h-7 rounded-full bg-[#FFFBEB] text-[#D97706] text-xs font-bold flex items-center justify-center shrink-0 border border-[#FDE68A]">
+                                {initial}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-[#6B7280]">
+                                  Pending invitation
+                                </span>
+                                <span className="text-[10px] text-[#9CA3AF]">
+                                  Expires {formatDate(inv.expires_at)}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 text-[#111827] font-medium">{inv.email}</td>
+                          <td className="py-4 px-6 text-[#9CA3AF]">—</td>
+                          <td className="py-4 px-6">
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-medium bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]">
+                                {getRoleLabel(inv.role)}
+                              </span>
+                              {inv.site_name && (
+                                <span className="text-[10px] text-[#6B7280]">
+                                  {inv.site_name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                              <span>Pending</span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -764,7 +885,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         )}
       </div>
 
-      {/* Machine Detail Drawer for viewing assigned machine */}
+      {/* Machine drawer */}
       <MachineDetailDrawer
         isOpen={Boolean(viewingMachine)}
         machine={viewingMachine}

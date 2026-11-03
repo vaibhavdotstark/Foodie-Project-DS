@@ -8,6 +8,7 @@ import { UserRegistrationPage } from './pages/UserRegistrationPage';
 import { MachinesPage } from './pages/MachinesPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { PlaceholderView } from './components/common/PlaceholderView';
 import { SessionTimeoutTracker } from './components/auth/SessionTimeoutTracker';
 
@@ -41,10 +42,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean 
 export const AppContent: React.FC = () => {
   return (
     <Routes>
-      {/* Public Authentication Route */}
+      {/* Public auth routes */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
-      {/* Authenticated Application with Master Layout */}
+      {/* Authenticated layout */}
       <Route
         path="/"
         element={
@@ -137,7 +139,6 @@ export const AppContent: React.FC = () => {
         />
       </Route>
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

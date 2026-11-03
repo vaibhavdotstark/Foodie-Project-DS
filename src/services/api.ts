@@ -1,4 +1,15 @@
-import type { Site, User, Organization, Machine, MachineModel, OrganizationCreateData, DashboardStats } from '../types';
+import type {
+  Site,
+  User,
+  Organization,
+  Machine,
+  MachineModel,
+  OrganizationCreateData,
+  DashboardStats,
+  UserInvitation,
+  VerifyInvitationData,
+  AcceptInvitationPayload,
+} from '../types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 const TOKEN_KEY = 'foodie_jwt_token_v1';
@@ -25,7 +36,6 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers,
   });
 
-  // Safely parse JSON or text bodies without failing on empty responses or 204 No Content
   let data: any = null;
   try {
     const text = await response.text();
@@ -51,9 +61,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return (data || {}) as T;
 }
 
-// ----------------------------------------------------------------------------
-// AUTHENTICATION API (JWT Based)
-// ----------------------------------------------------------------------------
+// Authentication
 export const authApi = {
   login: async (email: string, password: string): Promise<{ token: string; user: User }> => {
     const res = await request<{ token: string; user: User }>('/auth/login', {
@@ -94,28 +102,35 @@ export const authApi = {
   },
 };
 
-// ----------------------------------------------------------------------------
-// SITES API
-// ----------------------------------------------------------------------------
+// Sites
 export const sitesApi = {
-  getAll: async (): Promise<Site[]> => {
-    return [];
+  getAll: async (orgId?: string): Promise<Site[]> => {
+    const url = orgId ? `/sites?organization_id=${encodeURIComponent(orgId)}` : '/sites';
+    return await request<Site[]>(url);
   },
 
-  create: async (_siteData: any): Promise<Site> => {
-    return {} as Site;
+  create: async (siteData: any): Promise<Site> => {
+    return await request<Site>('/sites', {
+      method: 'POST',
+      body: JSON.stringify(siteData),
+    });
   },
 
-  update: async (_id: string, _updatedFields: any): Promise<Site> => {
-    return {} as Site;
+  update: async (id: string, updatedFields: any): Promise<Site> => {
+    return await request<Site>(`/sites/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updatedFields),
+    });
   },
 
-  delete: async (_id: string): Promise<void> => { },
+  delete: async (id: string): Promise<void> => {
+    await request<void>(`/sites/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
-// ----------------------------------------------------------------------------
-// USERS API (Direct PostgreSQL / FastAPI CRUD)
-// ----------------------------------------------------------------------------
+// Users
 export const usersApi = {
   getAll: async (): Promise<User[]> => {
     return await request<User[]>('/users');
@@ -140,9 +155,7 @@ export const usersApi = {
   },
 };
 
-// ----------------------------------------------------------------------------
-// ORGANIZATIONS API (Direct PostgreSQL / FastAPI)
-// ----------------------------------------------------------------------------
+// Organizations
 export const orgsApi = {
   getAll: async (): Promise<Organization[]> => {
     return await request<Organization[]>('/organizations');
@@ -182,15 +195,13 @@ export const orgsApi = {
   },
 };
 
-// ----------------------------------------------------------------------------
-// SEARCH API (Multi-Entity Search across PostgreSQL)
-// ----------------------------------------------------------------------------
 export interface SearchResults {
   sites: { id: string; site_code: string; site_name: string; address: string; is_active: boolean }[];
   users: { id: string; first_name: string; last_name: string; email: string; role: string }[];
   machines: { id: string; model: string; location: string; status: string; temp: string }[];
 }
 
+// Search
 export const searchApi = {
   query: async (q: string): Promise<SearchResults> => {
     if (!q.trim()) {
@@ -200,9 +211,7 @@ export const searchApi = {
   },
 };
 
-// ----------------------------------------------------------------------------
-// MACHINES API (Direct PostgreSQL / FastAPI Machine Onboarding & Leases)
-// ----------------------------------------------------------------------------
+// Machines
 export const machinesApi = {
   getAll: async (): Promise<Machine[]> => {
     return await request<Machine[]>('/machines');
@@ -245,12 +254,42 @@ export const machinesApi = {
   },
 };
 
-// ----------------------------------------------------------------------------
-// DASHBOARD API (Live Dynamic Telemetry & Fleet Overview)
-// ----------------------------------------------------------------------------
+// Dashboard
 export const dashboardApi = {
   getStats: async (): Promise<DashboardStats> => {
     return await request<DashboardStats>('/dashboard/stats');
+  },
+};
+
+// Invitations
+export const invitationsApi = {
+  create: async (
+    orgId: string,
+    invitations: { email: string; role: string }[]
+  ): Promise<{ success: boolean; invited_count: number; invitations: any[]; errors?: string[] }> => {
+    return await request(`/organizations/${orgId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify({ invitations }),
+    });
+  },
+
+  getAllByOrg: async (orgId: string): Promise<UserInvitation[]> => {
+    return await request<UserInvitation[]>(`/organizations/${orgId}/invitations`);
+  },
+
+  list: async (orgId: string): Promise<UserInvitation[]> => {
+    return await request<UserInvitation[]>(`/organizations/${orgId}/invitations`);
+  },
+
+  verify: async (token: string): Promise<VerifyInvitationData> => {
+    return await request<VerifyInvitationData>(`/invitations/verify?token=${encodeURIComponent(token)}`);
+  },
+
+  accept: async (payload: AcceptInvitationPayload): Promise<{ token: string; user: User }> => {
+    return await request<{ token: string; user: User }>('/invitations/accept', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };
 

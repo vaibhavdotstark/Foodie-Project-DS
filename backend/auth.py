@@ -53,7 +53,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
     with get_db_cursor() as cur:
         cur.execute("""
-            SELECT id, organization_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at
+            SELECT id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at
             FROM users WHERE id = %s;
         """, (user_id,))
         row = cur.fetchone()
@@ -61,4 +61,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
         cols = [desc[0] for desc in cur.description]
-        return dict(zip(cols, row))
+        d = dict(zip(cols, row))
+        d["id"] = str(d["id"])
+        if d.get("organization_id"):
+            d["organization_id"] = str(d["organization_id"])
+        if d.get("site_id"):
+            d["site_id"] = str(d["site_id"])
+        return d

@@ -5,12 +5,10 @@ from pydantic import BaseModel, Field, field_validator
 
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 SITE_CODE_REGEX = r'^[A-Za-z0-9-_]{2,20}$'
-PHONE_REGEX = r'^\+?[0-9\s-]{8,16}$'
-VALID_ROLES = ['OEM_MANAGER', 'SITE_ADMIN', 'OPERATOR']
+PHONE_REGEX = r'^\+?[0-9\s()-]{7,25}$'
+VALID_ROLES = ['OEM_MANAGER', 'ORGANISATION_OWNER', 'SITE_MANAGER', 'OPERATOR', 'SITE_ADMIN']
 
-# --------------------------------------------------------------------------
-# Authentication Schemas
-# --------------------------------------------------------------------------
+# Authentication schemas
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -26,6 +24,8 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: str
     organization_id: Optional[str] = None
+    site_id: Optional[str] = None
+    site_name: Optional[str] = None
     assigned_site_id: Optional[str] = None
     email: str
     first_name: str
@@ -70,9 +70,7 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
-# --------------------------------------------------------------------------
-# User Management Schemas
-# --------------------------------------------------------------------------
+# User management schemas
 class UserCreate(BaseModel):
     organization_id: Optional[str] = None
     assigned_site_id: Optional[str] = None
@@ -130,9 +128,7 @@ class UserUpdate(BaseModel):
             raise ValueError(f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")
         return v
 
-# --------------------------------------------------------------------------
-# Site Management Schemas
-# --------------------------------------------------------------------------
+# Site schemas
 class SiteCreate(BaseModel):
     organization_id: str
     site_code: str
@@ -202,15 +198,13 @@ class SiteResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-# --------------------------------------------------------------------------
-# Organization & Global Search Schemas
-# --------------------------------------------------------------------------
 class MachineAssignmentItem(BaseModel):
     machine_id: str
     location: Optional[str] = None
     lease_start_date: Optional[str] = None
     lease_end_date: Optional[str] = None
 
+# Organization schemas
 class OrganizationCreate(BaseModel):
     client_code: str
     company_name: str
@@ -229,6 +223,18 @@ class OrganizationCreate(BaseModel):
     comms_preference: Optional[str] = 'Email'
     assigned_machines: Optional[List[MachineAssignmentItem]] = None
     is_active: Optional[bool] = True
+
+    @field_validator('phone_number')
+    @classmethod
+    def check_phone_number(cls, v: Optional[str]) -> Optional[str]:
+        if not v or not v.strip():
+            return None
+        clean = v.strip()
+        if len(clean) > 25:
+            raise ValueError('Phone number cannot exceed 25 characters.')
+        if not re.match(PHONE_REGEX, clean):
+            raise ValueError('Enter a valid phone number (up to 25 characters).')
+        return clean
 
     @field_validator('onboarding_date')
     @classmethod
@@ -273,6 +279,18 @@ class OrganizationUpdate(BaseModel):
     preferred_currency: Optional[str] = None
     comms_preference: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator('phone_number')
+    @classmethod
+    def check_phone_number_update(cls, v: Optional[str]) -> Optional[str]:
+        if not v or not v.strip():
+            return None
+        clean = v.strip()
+        if len(clean) > 25:
+            raise ValueError('Phone number cannot exceed 25 characters.')
+        if not re.match(PHONE_REGEX, clean):
+            raise ValueError('Enter a valid phone number (up to 25 characters).')
+        return clean
 
     @field_validator('onboarding_date')
     @classmethod
@@ -337,9 +355,6 @@ class SearchResponse(BaseModel):
     users: List[SearchResultItemUser]
     machines: List[SearchResultItemMachine]
 
-# --------------------------------------------------------------------------
-# Machine Management & Commissioning Schemas
-# --------------------------------------------------------------------------
 MACHINE_CODE_REGEX = r'^[A-Za-z0-9-_]{2,20}$'
 IP_ADDRESS_REGEX = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
 VALID_MACHINE_MODELS = {
@@ -385,6 +400,7 @@ class MachineLeaseResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+# Machine schemas
 class MachineCreate(BaseModel):
     serial_number: str
     machine_code: Optional[str] = None
@@ -393,6 +409,7 @@ class MachineCreate(BaseModel):
     capacity: Optional[str] = None
     hardware_version: Optional[str] = None
     organization_id: Optional[str] = None
+    site_id: Optional[str] = None
     location_label: Optional[str] = None
     location_description: Optional[str] = None
     plc_software_version: Optional[str] = None
@@ -444,6 +461,7 @@ class MachineUpdate(BaseModel):
     capacity: Optional[str] = None
     hardware_version: Optional[str] = None
     organization_id: Optional[str] = None
+    site_id: Optional[str] = None
     location_label: Optional[str] = None
     location_description: Optional[str] = None
     plc_software_version: Optional[str] = None
@@ -475,6 +493,8 @@ class MachineResponse(BaseModel):
     capacity: Optional[str] = None
     hardware_version: Optional[str] = None
     organization_id: Optional[str] = None
+    site_id: Optional[str] = None
+    site_name: Optional[str] = None
     client_code: Optional[str] = None
     company_name: Optional[str] = None
     location_label: Optional[str] = None
@@ -497,3 +517,64 @@ class MachineResponse(BaseModel):
     created_by: Optional[str] = None
     deleted_by: Optional[str] = None
 
+
+
+# User invitation schemas
+class InvitationItem(BaseModel):
+    email: str
+    role: str = 'ORGANISATION_OWNER'
+    site_id: Optional[str] = None
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if not re.match(EMAIL_REGEX, clean):
+            raise ValueError(f"'{v}' is not a valid email address.")
+        return clean
+
+    @field_validator('role')
+    @classmethod
+    def check_role(cls, v: str) -> str:
+        if v not in VALID_ROLES:
+            raise ValueError(f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")
+        return v
+
+class InvitationCreateRequest(BaseModel):
+    invitations: List[InvitationItem]
+
+class InvitationResponse(BaseModel):
+    id: str
+    organization_id: str
+    site_id: Optional[str] = None
+    site_name: Optional[str] = None
+    email: str
+    role: str
+    status: str
+    expires_at: datetime
+    created_at: datetime
+    accepted_at: Optional[datetime] = None
+
+class VerifyInvitationResponse(BaseModel):
+    valid: bool
+    email: str
+    role: str
+    organization_id: str
+    company_name: str
+    client_code: str
+    site_id: Optional[str] = None
+    site_name: Optional[str] = None
+
+class AcceptInvitationRequest(BaseModel):
+    token: str
+    first_name: str
+    last_name: str
+    password: str
+    phone_number: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("Password must be at least 6 characters long.")
+        return v

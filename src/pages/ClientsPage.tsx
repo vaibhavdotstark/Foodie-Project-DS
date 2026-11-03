@@ -28,6 +28,7 @@ import { DeleteClientModal } from '../components/clients/DeleteClientModal';
 import { AssignMachineModal } from '../components/clients/AssignMachineModal';
 import { AddMachineDrawer } from '../components/machines/AddMachineDrawer';
 import { ClientDetailView } from '../components/clients/ClientDetailView';
+import { InviteUsersDrawer } from '../components/clients/InviteUsersDrawer';
 import { Toast } from '../components/common/Toast';
 import type { Organization, Machine, User } from '../types';
 
@@ -40,31 +41,26 @@ export const ClientsPage: React.FC = () => {
     return <Navigate to="/" replace />;
   }
 
-  // Live Data States
+  // Clients live state and filters
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
 
-  // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [businessTypeFilter, setBusinessTypeFilter] = useState<string>('All');
   const [locationFilter, setLocationFilter] = useState<string>('All locations');
 
-  // Row Selection State for Bulk Actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
-  // Row Actions Dropdown Menu State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const menuContainerRef = useRef<HTMLDivElement>(null);
 
-  // Modals & Drawers States
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Organization | null>(null);
   const [deletingClient, setDeletingClient] = useState<Organization | null>(null);
@@ -72,8 +68,9 @@ export const ClientsPage: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<Organization | null>(null);
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
   const [isAssignMachineOpen, setIsAssignMachineOpen] = useState(false);
+  const [isInviteUsersOpen, setIsInviteUsersOpen] = useState(false);
 
-  // Load live data from PostgreSQL API
+  // Fetch clients, machines, and users from API
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -118,13 +115,13 @@ export const ClientsPage: React.FC = () => {
       setEditingClient(null);
       setIsAddClientOpen(false);
       setIsAssignMachineOpen(false);
+      setIsInviteUsersOpen(false);
       setSearchParams({});
     };
     window.addEventListener('reset-clients-view', handleReset);
     return () => window.removeEventListener('reset-clients-view', handleReset);
   }, [setSearchParams]);
 
-  // Click outside listener for the row action menu
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuContainerRef.current && !menuContainerRef.current.contains(e.target as Node)) {
@@ -135,7 +132,6 @@ export const ClientsPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Location Formatter: parses suburb & state (e.g. "Mount Isa QLD")
   const formatLocation = (address?: string): string => {
     if (!address) return '—';
     const parts = address.split(',').map((p) => p.trim());
@@ -151,7 +147,6 @@ export const ClientsPage: React.FC = () => {
     return address;
   };
 
-  // Date Formatter: "14 Oct 2026"
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -163,7 +158,6 @@ export const ClientsPage: React.FC = () => {
     });
   };
 
-  // Dynamic unique locations from client organizations
   const uniqueLocations = useMemo(() => {
     const locSet = new Set<string>();
     organizations.forEach((org) => {
@@ -173,10 +167,8 @@ export const ClientsPage: React.FC = () => {
     return Array.from(locSet).filter(Boolean);
   }, [organizations]);
 
-  // Filter Pipeline
   const filteredOrganizations = useMemo(() => {
     return organizations.filter((org) => {
-      // 1. Search Query
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -186,20 +178,17 @@ export const ClientsPage: React.FC = () => {
         (org.email && org.email.toLowerCase().includes(q)) ||
         (org.billing_address && org.billing_address.toLowerCase().includes(q));
 
-      // 2. Status Filter
       const clientStatus =
         org.status || (org.is_active ? 'Active' : 'Pending');
       const matchesStatus =
         statusFilter === 'All' ||
         clientStatus.toLowerCase() === statusFilter.toLowerCase();
 
-      // 3. Business Type Filter
       const clientType = org.business_type || 'Corporate';
       const matchesType =
         businessTypeFilter === 'All' ||
         clientType.toLowerCase() === businessTypeFilter.toLowerCase();
 
-      // 4. Site / Facility Location Filter
       const matchesLocation =
         locationFilter === 'All locations' ||
         (org.billing_address &&
@@ -216,14 +205,12 @@ export const ClientsPage: React.FC = () => {
     });
   }, [organizations, searchQuery, statusFilter, businessTypeFilter, locationFilter]);
 
-  // Pagination Slice
   const totalItems = filteredOrganizations.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = Math.min(startIndex + rowsPerPage, totalItems);
   const paginatedClients = filteredOrganizations.slice(startIndex, endIndex);
 
-  // Checkbox Selection Logic
   const isAllPageSelected =
     paginatedClients.length > 0 &&
     paginatedClients.every((c) => selectedIds.includes(c.id));
@@ -245,7 +232,6 @@ export const ClientsPage: React.FC = () => {
     );
   };
 
-  // Bulk Export to CSV
   const handleExportData = (exportItems: Organization[]) => {
     if (exportItems.length === 0) return;
     const headers = [
@@ -283,18 +269,32 @@ export const ClientsPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Bulk Archive
-  const handleBulkArchive = async () => {
+  // Bulk activate or archive selected clients
+  const handleBulkSetStatus = async (targetActive: boolean) => {
     const selectedClients = organizations.filter((o) => selectedIds.includes(o.id));
+    if (selectedClients.length === 0) return;
+
+    let successCount = 0;
     for (const c of selectedClients) {
       try {
-        await orgsApi.update(c.id, { is_active: !c.is_active, status: c.is_active ? 'Inactive' : 'Active' });
+        await orgsApi.update(c.id, {
+          is_active: targetActive,
+          status: targetActive ? 'Active' : 'Inactive',
+        });
+        successCount++;
       } catch (err) {
-        console.error('Error toggling client active state:', err);
+        console.error(`Error updating client ${c.company_name} status:`, err);
       }
     }
+
     await fetchData();
     setSelectedIds([]);
+    setToast({
+      message: targetActive
+        ? `Successfully activated ${successCount} client${successCount > 1 ? 's' : ''}!`
+        : `Successfully archived ${successCount} client${successCount > 1 ? 's' : ''} (set to inactive).`,
+      type: targetActive ? 'success' : 'info',
+    });
   };
 
   const handleUnassignMachine = async (machineId: string) => {
@@ -354,10 +354,26 @@ export const ClientsPage: React.FC = () => {
             setSearchParams({});
           }}
           onEdit={() => setEditingClient(selectedClient)}
+          onInviteUsers={() => setIsInviteUsersOpen(true)}
           onAssignMachine={() => setIsAssignMachineOpen(true)}
           onUnassignMachine={handleUnassignMachine}
           onDeleteClient={() => setDeletingClient(selectedClient)}
           onToggleStatus={handleToggleSelectedClientStatus}
+        />
+
+        <InviteUsersDrawer
+          isOpen={isInviteUsersOpen}
+          client={selectedClient}
+          existingUsers={users.filter((u) => u.organization_id === selectedClient?.id)}
+          onClose={() => setIsInviteUsersOpen(false)}
+          onSuccess={(count) => {
+            fetchData();
+            window.dispatchEvent(new CustomEvent('invitations-updated'));
+            setToast({
+              message: `Successfully sent ${count} invitation email${count > 1 ? 's' : ''}!`,
+              type: 'success',
+            });
+          }}
         />
 
         <EditClientModal
@@ -407,7 +423,6 @@ export const ClientsPage: React.FC = () => {
           }}
         />
 
-        {/* Toast Notification Popup */}
         {toast && (
           <Toast
             message={toast.message}
@@ -421,7 +436,7 @@ export const ClientsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-5 max-w-[1400px] mx-auto select-none">
-      {/* 1. Header */}
+      {/* Page header and actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div>
           <div className="flex items-center gap-2">
@@ -453,11 +468,9 @@ export const ClientsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* 2. Main White Card Container */}
+      {/* Filter and search bar */}
       <div className="bg-white rounded-2xl border border-[#E3E4E6] p-5 shadow-xs overflow-hidden">
-        {/* Top Filter Bar Row */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Search Box */}
           <div className="relative flex-1 min-w-[240px]">
             <Search className="w-4 h-4 text-[#888888] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -481,7 +494,6 @@ export const ClientsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Status Dropdown */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#666666] font-medium whitespace-nowrap">Status</span>
             <select
@@ -499,7 +511,6 @@ export const ClientsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Business Type Dropdown */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#666666] font-medium whitespace-nowrap">Business type</span>
             <select
@@ -516,7 +527,6 @@ export const ClientsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Location Dropdown (Facility Location wise) */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#666666] font-medium whitespace-nowrap">Location</span>
             <select
@@ -536,7 +546,6 @@ export const ClientsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* More Filters Button */}
           <a
             href="#"
             onClick={(e) => {
@@ -550,70 +559,115 @@ export const ClientsPage: React.FC = () => {
           </a>
         </div>
 
-        {/* 3. Selection Banner */}
-        {selectedIds.length > 0 && (
-          <div className="bg-[#FFF0F0] border border-[#FECACA] rounded-xl px-4 py-2.5 flex items-center justify-between text-xs my-4 animate-in fade-in duration-150">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-[#E32032] text-white flex items-center justify-center text-[10px] font-bold">
-                ✓
-              </span>
-              <span className="font-bold text-[#171717]">
-                {selectedIds.length === 1
-                  ? `1 client selected · ${organizations.find((o) => o.id === selectedIds[0])?.company_name || 'Client'}`
-                  : `${selectedIds.length} clients selected`}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedIds([])}
-                className="text-[#E32032] underline font-bold hover:text-[#C1121F] cursor-pointer ml-1"
-              >
-                Clear selection
-              </button>
+        {/* Selection and bulk actions */}
+        {selectedIds.length > 0 && (() => {
+          const selectedClients = organizations.filter((o) => selectedIds.includes(o.id));
+          const allSelectedInactive =
+            selectedClients.length > 0 &&
+            selectedClients.every(
+              (c) => !c.is_active || (c.status || '').toLowerCase() === 'inactive'
+            );
+          const allSelectedActive =
+            selectedClients.length > 0 &&
+            selectedClients.every(
+              (c) => c.is_active && (c.status || '').toLowerCase() !== 'inactive'
+            );
+
+          return (
+            <div className="bg-[#FFF0F0] border border-[#FECACA] rounded-xl px-4 py-2.5 flex items-center justify-between text-xs my-4 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded bg-[#E32032] text-white flex items-center justify-center text-[10px] font-bold">
+                  ✓
+                </span>
+                <span className="font-bold text-[#171717]">
+                  {selectedIds.length === 1
+                    ? `1 client selected · ${selectedClients[0]?.company_name || 'Client'}`
+                    : `${selectedIds.length} clients selected`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  className="text-[#E32032] underline font-bold hover:text-[#C1121F] cursor-pointer ml-1"
+                >
+                  Clear selection
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExportData(selectedClients)}
+                  className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#171717] hover:bg-[#F9FAFB] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export data</span>
+                </button>
+
+                {allSelectedInactive && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkSetStatus(true)}
+                    className="px-3 py-1.5 rounded-lg border border-[#A7F3D0] bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+                    <span>Activate</span>
+                  </button>
+                )}
+
+                {allSelectedActive && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkSetStatus(false)}
+                    className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#171717] hover:bg-[#F9FAFB] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Archive className="w-3.5 h-3.5" />
+                    <span>Archive</span>
+                  </button>
+                )}
+
+                {!allSelectedInactive && !allSelectedActive && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkSetStatus(true)}
+                      className="px-3 py-1.5 rounded-lg border border-[#A7F3D0] bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+                      <span>Activate all</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkSetStatus(false)}
+                      className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#171717] hover:bg-[#F9FAFB] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                      <span>Archive all</span>
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingClients(selectedClients);
+                    setDeletingClient(selectedClients.length === 1 ? selectedClients[0] : null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#E32032] hover:bg-red-50 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
+                  <span>Delete</span>
+                </button>
+              </div>
             </div>
+          );
+        })()}
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  handleExportData(organizations.filter((o) => selectedIds.includes(o.id)))
-                }
-                className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#171717] hover:bg-[#F9FAFB] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export data</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleBulkArchive}
-                className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#171717] hover:bg-[#F9FAFB] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Archive className="w-3.5 h-3.5" />
-                <span>Archive</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const selectedObjs = organizations.filter((o) => selectedIds.includes(o.id));
-                  setDeletingClients(selectedObjs);
-                  setDeletingClient(selectedObjs.length === 1 ? selectedObjs[0] : null);
-                }}
-                className="px-3 py-1.5 rounded-lg border border-[#E3E4E6] bg-white text-[#E32032] hover:bg-red-50 font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
-                <span>Delete</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 4. Clients Table */}
+        {/* Clients data table */}
+        {/* Clients data table */}
         <div className="overflow-x-auto mt-4">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-[#E5E7EB] text-[11px] font-semibold text-[#6B7280]">
-                {/* Select All Checkbox */}
                 <th className="py-3 px-3 w-10 text-center">
                   <input
                     type="checkbox"
@@ -661,7 +715,6 @@ export const ClientsPage: React.FC = () => {
                           : 'hover:bg-[#F9FAFB]'
                       }`}
                     >
-                      {/* Checkbox */}
                       <td className="py-3.5 px-3 text-center">
                         <input
                           type="checkbox"
@@ -671,7 +724,6 @@ export const ClientsPage: React.FC = () => {
                         />
                       </td>
 
-                      {/* Client ID (Red Underlined Link) */}
                       <td className="py-3.5 px-3 whitespace-nowrap min-w-[100px]">
                         <button
                           type="button"
@@ -682,37 +734,30 @@ export const ClientsPage: React.FC = () => {
                         </button>
                       </td>
 
-                      {/* Company Name */}
                       <td className="py-3.5 px-3 font-bold text-[#171717]">
                         {client.company_name}
                       </td>
 
-                      {/* Business Type */}
                       <td className="py-3.5 px-3 text-[#171717] whitespace-nowrap">
                         {client.business_type || 'Corporate'}
                       </td>
 
-                      {/* Point of Contact */}
                       <td className="py-3.5 px-3 text-[#171717] whitespace-nowrap">
                         {client.contact_poc || 'Jordan Smith'}
                       </td>
 
-                      {/* Location */}
                       <td className="py-3.5 px-3 text-[#171717]">
                         {formatLocation(client.billing_address)}
                       </td>
 
-                      {/* Total Machines */}
                       <td className="py-3.5 px-3 text-center font-medium text-[#171717] whitespace-nowrap">
                         {clientMachineCount}
                       </td>
 
-                      {/* Onboarding Date */}
                       <td className="py-3.5 px-3 text-[#6B7280] whitespace-nowrap">
                         {formatDate(client.onboarding_date || client.created_at)}
                       </td>
 
-                      {/* Status Badge with Dot */}
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
@@ -736,7 +781,6 @@ export const ClientsPage: React.FC = () => {
                         </span>
                       </td>
 
-                      {/* Actions Button & Dropdown Menu */}
                       <td className="py-3.5 px-3 text-right relative">
                         <button
                           type="button"
@@ -749,7 +793,6 @@ export const ClientsPage: React.FC = () => {
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
 
-                        {/* Action Menu */}
                         {activeMenuId === client.id && (
                           <div
                             ref={menuContainerRef}
@@ -873,9 +916,7 @@ export const ClientsPage: React.FC = () => {
           </table>
         </div>
 
-        {/* 5. Pagination Footer */}
         <div className="pt-4 mt-3 border-t border-[#F3F4F6] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
-          {/* Left: Page X of Y */}
           <div className="flex items-center gap-2">
             <span>Page</span>
             <input
@@ -892,7 +933,6 @@ export const ClientsPage: React.FC = () => {
             <span>of {totalPages}</span>
           </div>
 
-          {/* Rows per page dropdown */}
           <div className="flex items-center gap-2">
             <span>Rows per page</span>
             <select
@@ -910,12 +950,10 @@ export const ClientsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Center Summary */}
           <div>
             Showing {totalItems > 0 ? startIndex + 1 : 0}–{endIndex} of {totalItems} clients
           </div>
 
-          {/* Right: Page Navigation Buttons */}
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -936,7 +974,6 @@ export const ClientsPage: React.FC = () => {
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
 
-            {/* Page number buttons */}
             {Array.from({ length: totalPages }, (_, i) => i + 1)
               .slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))
               .map((pageNum) => (
@@ -976,7 +1013,6 @@ export const ClientsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Toast Notification Popup */}
       {toast && (
         <Toast
           message={toast.message}
@@ -985,7 +1021,6 @@ export const ClientsPage: React.FC = () => {
         />
       )}
 
-      {/* Add Client Modal */}
       <AddClientModal
         isOpen={isAddClientOpen}
         onClose={() => setIsAddClientOpen(false)}
@@ -998,7 +1033,6 @@ export const ClientsPage: React.FC = () => {
         }}
       />
 
-      {/* Edit Client Modal */}
       <EditClientModal
         isOpen={Boolean(editingClient)}
         client={editingClient}
@@ -1014,7 +1048,6 @@ export const ClientsPage: React.FC = () => {
         }}
       />
 
-      {/* Delete Client Modal */}
       <DeleteClientModal
         isOpen={Boolean(deletingClient || deletingClients.length > 0)}
         client={deletingClient}
@@ -1034,7 +1067,6 @@ export const ClientsPage: React.FC = () => {
         }}
       />
 
-      {/* Add Machine Drawer */}
       <AddMachineDrawer
         isOpen={isAddMachineOpen}
         onClose={() => setIsAddMachineOpen(false)}

@@ -7,6 +7,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithToken: (newUser: User, newToken: string) => void;
   logout: () => void;
   switchRole: (role: UserRole) => void;
   updateUser: (updatedUser: User) => void;
@@ -49,6 +50,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithToken = (newUser: User, newToken: string) => {
+    tokenStorage.set(newToken);
+    setToken(newToken);
+    setUser(newUser);
+  };
+
   const logout = () => {
     authApi.logout();
     setToken(null);
@@ -72,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user,
         login,
+        loginWithToken,
         logout,
         switchRole,
         updateUser,

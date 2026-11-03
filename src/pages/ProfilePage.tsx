@@ -118,6 +118,8 @@ export const ProfilePage: React.FC = () => {
 
   const roleTitleMap: Record<UserRole, string> = {
     OEM_MANAGER: 'OEM Asset Manager',
+    ORGANISATION_OWNER: 'Organisation Owner',
+    SITE_MANAGER: 'Site Manager',
     SITE_ADMIN: 'Site Admin',
     OPERATOR: 'Operator',
   };
@@ -154,7 +156,6 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1200px] mx-auto select-none pb-10">
-      {/* 1. Header / Breadcrumbs */}
       <div className="pt-1">
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[#6B7280] mb-2">
           <button
@@ -179,7 +180,6 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Hero Profile Card */}
       <div className="bg-white rounded-2xl border border-[#E3E4E6] p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#FFEBEB] text-[#991B1B] font-extrabold text-2xl sm:text-3xl flex items-center justify-center border border-red-200 shadow-2xs shrink-0">
@@ -213,9 +213,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Main Form Area */}
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs flex items-center gap-2.5 shadow-2xs">
             <AlertCircle className="w-4 h-4 text-[#E32032] shrink-0" />
@@ -224,7 +222,6 @@ export const ProfilePage: React.FC = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Personal Information (2 cols) */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl border border-[#E3E4E6] p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-2 pb-4 mb-4 border-b border-[#F0F1F3]">
@@ -323,7 +320,6 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Security & Password Card */}
             <div className="bg-white rounded-2xl border border-[#E3E4E6] p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-2 pb-4 mb-4 border-b border-[#F0F1F3]">
                 <KeyRound className="w-4 h-4 text-[#E32032]" />
@@ -384,7 +380,6 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Account Meta & Actions (1 col) */}
           <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-[#E3E4E6] p-5 shadow-xs">
               <div className="flex items-center gap-2 pb-3 mb-3 border-b border-[#F0F1F3]">
@@ -426,7 +421,6 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Actions Card */}
             <div className="bg-white rounded-2xl border border-[#E3E4E6] p-5 shadow-xs flex flex-col gap-3">
               <button
                 type="submit"
@@ -460,7 +454,6 @@ export const ProfilePage: React.FC = () => {
         </div>
       </form>
 
-      {/* Toast Feedback */}
       {toast && (
         <Toast
           message={toast.message}
