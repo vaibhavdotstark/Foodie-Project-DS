@@ -82,6 +82,16 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
+    if (response.status === 401 && !endpoint.includes('/auth/login')) {
+      tokenStorage.clear();
+      try {
+        localStorage.removeItem('foodie_auth_user_v4');
+        localStorage.removeItem('foodie_auth_user');
+      } catch {}
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
     const errorMsg =
       data?.detail ||
       data?.error ||
