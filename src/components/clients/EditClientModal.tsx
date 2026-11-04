@@ -178,8 +178,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                 <div className="space-y-4">
                   {/* Row 1: Full name, Business type, Tax ID */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                    <div className="flex flex-col justify-end">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 sm:min-h-[32px] flex items-end">
                         Full name / Company name
                       </label>
                       <input
@@ -188,13 +188,13 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                         value={formData.company_name}
                         onChange={handleChange}
                         placeholder="e.g. Coastal Café Group"
-                        className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
+                        className="w-full h-9 bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
                         required
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                    <div className="flex flex-col justify-end">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 sm:min-h-[32px] flex items-end">
                         Business type (Individual / Corporate)
                       </label>
                       <div className="relative">
@@ -202,7 +202,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                           name="business_type"
                           value={formData.business_type}
                           onChange={handleChange}
-                          className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all appearance-none cursor-pointer pr-9"
+                          className="w-full h-9 bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all appearance-none cursor-pointer pr-9"
                         >
                           <option value="Corporate">Corporate</option>
                           <option value="Individual">Individual</option>
@@ -219,8 +219,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                    <div className="flex flex-col justify-end">
+                      <label className="block text-xs font-medium text-[#374151] mb-1.5 sm:min-h-[32px] flex items-end">
                         Tax ID (ABN / GST)
                       </label>
                       <input
@@ -229,7 +229,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                         value={formData.tax_id}
                         onChange={handleChange}
                         placeholder="11 222 333 444"
-                        className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
+                        className="w-full h-9 bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
                       />
                     </div>
                   </div>

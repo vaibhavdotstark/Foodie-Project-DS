@@ -41,7 +41,7 @@ export const MachinesPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [clientFilter, setClientFilter] = useState<string>('All clients');
   const [locationFilter, setLocationFilter] = useState<string>('All locations');
-  const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
+  const [showMoreFilters] = useState<boolean>(false);
   const [modelFilter, setModelFilter] = useState<string>('All');
 
   // Pagination State
@@ -421,14 +421,10 @@ export const MachinesPage: React.FC = () => {
             {/* More filters Button */}
             <button
               type="button"
-              onClick={() => setShowMoreFilters(!showMoreFilters)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                showMoreFilters
-                  ? 'border-[#171717] bg-[#171717] text-white'
-                  : 'border-[#E5E7EB] bg-white text-[#171717] hover:bg-[#F9FAFB]'
-              }`}
+              disabled
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF] text-xs font-semibold opacity-60 cursor-not-allowed select-none"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#9CA3AF]" />
               <span>More filters</span>
             </button>
           </div>

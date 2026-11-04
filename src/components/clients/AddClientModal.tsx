@@ -412,8 +412,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                 </div>
 
                 {/* Business type (Individual / Corporate) */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#171717] mb-1.5">
+                <div className="flex flex-col justify-end">
+                  <label className="block text-xs font-semibold text-[#171717] mb-1.5 sm:min-h-[32px] flex items-end">
                     Business type (Individual / Corporate)
                   </label>
                   <select
@@ -429,8 +429,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                 </div>
 
                 {/* Tax ID (ABN / GST) */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#171717] mb-1.5">
+                <div className="flex flex-col justify-end">
+                  <label className="block text-xs font-semibold text-[#171717] mb-1.5 sm:min-h-[32px] flex items-end">
                     Tax ID (ABN / GST)
                   </label>
                   <input
@@ -443,8 +443,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                 </div>
 
                 {/* Payment terms */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#171717] mb-1.5">
+                <div className="flex flex-col justify-end">
+                  <label className="block text-xs font-semibold text-[#171717] mb-1.5 sm:min-h-[32px] flex items-end">
                     Payment terms
                   </label>
                   <select
