@@ -10,15 +10,15 @@ router = APIRouter(prefix="/api/organizations", tags=["Organizations"], dependen
 
 @router.get("/next-code")
 def get_next_client_code():
-    """Calculates the next sequential client code in CL-0001 series, preserving series order and never reusing any deleted or existing client ID."""
+    """Calculates the next sequential client code in ORG-0001 series, preserving series order and never reusing any deleted or existing client ID."""
     with get_db_cursor() as cur:
-        cur.execute("SELECT client_code FROM organizations;")
+        cur.execute("SELECT organisation_code FROM organizations;")
         rows = cur.fetchall()
         nums = set()
         for (code,) in rows:
             if not code:
                 continue
-            m = re.match(r'^CL-(\d+)', code.strip(), re.IGNORECASE)
+            m = re.match(r'^(?:ORG|CL)-(\d+)', code.strip(), re.IGNORECASE)
             if m:
                 try:
                     num = int(m.group(1))
@@ -27,12 +27,17 @@ def get_next_client_code():
                 except ValueError:
                     continue
         next_num = max(nums) + 1 if nums else 1
-        return {"next_code": f"CL-{next_num:04d}"}
+        return {"next_code": f"ORG-{next_num:04d}"}
 
 @router.get("", response_model=List[OrganizationResponse])
-def get_organizations():
+def get_organizations(current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
     with get_db_cursor() as cur:
-        cur.execute("SELECT * FROM organizations WHERE is_deleted IS NOT TRUE ORDER BY created_at DESC, client_code DESC;")
+        if user_role == "OEM_MANAGER":
+            cur.execute("SELECT * FROM organizations WHERE is_deleted IS NOT TRUE ORDER BY created_at DESC, organisation_code DESC;")
+        else:
+            cur.execute("SELECT * FROM organizations WHERE id = %s AND is_deleted IS NOT TRUE;", (user_org_id,))
         rows = cur.fetchall()
         cols = [desc[0] for desc in cur.description]
         results = []
@@ -45,16 +50,26 @@ def get_organizations():
                 d["deleted_by"] = str(d["deleted_by"])
             if d.get("onboarding_date"):
                 d["onboarding_date"] = str(d["onboarding_date"])
+            code_val = d.get("organisation_code") or d.get("client_code")
+            d["organisation_code"] = code_val
+            d["client_code"] = code_val
             results.append(OrganizationResponse(**d))
         return results
 
 @router.get("/{org_id}", response_model=OrganizationResponse)
-def get_organization(org_id: str):
+def get_organization(org_id: str, current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
+    if user_role != "OEM_MANAGER" and str(user_org_id) != str(org_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You do not have permission to access another organisation's details."
+        )
     with get_db_cursor() as cur:
         cur.execute("SELECT * FROM organizations WHERE id = %s AND is_deleted IS NOT TRUE;", (org_id,))
         row = cur.fetchone()
         if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client organization not found.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
         cols = [desc[0] for desc in cur.description]
         d = dict(zip(cols, row))
         d["id"] = str(d["id"])
@@ -64,28 +79,36 @@ def get_organization(org_id: str):
             d["deleted_by"] = str(d["deleted_by"])
         if d.get("onboarding_date"):
             d["onboarding_date"] = str(d["onboarding_date"])
+        code_val = d.get("organisation_code") or d.get("client_code")
+        d["organisation_code"] = code_val
+        d["client_code"] = code_val
         return OrganizationResponse(**d)
 
 @router.post("", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 def create_organization(payload: OrganizationCreate, current_user: dict = Depends(get_current_user)):
-    code = payload.client_code.strip().upper()
+    if current_user.get("role") != "OEM_MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Only OEM Managers can create new organisations."
+        )
+    code = (payload.organisation_code or payload.client_code or "").strip().upper()
     company = payload.company_name.strip()
     
     onboarding_d = payload.onboarding_date.strip() if payload.onboarding_date and payload.onboarding_date.strip() else None
 
     with get_db_cursor(commit=True) as cur:
-        cur.execute("SELECT id, is_deleted FROM organizations WHERE UPPER(client_code) = %s;", (code,))
+        cur.execute("SELECT id, is_deleted FROM organizations WHERE UPPER(organisation_code) = %s;", (code,))
         row = cur.fetchone()
         if row:
             if row[1]:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Client ID '{code}' was previously assigned to an archived client and cannot be reused. Please use the next sequential code."
+                    detail=f"Organisation ID '{code}' was previously assigned to an archived organisation and cannot be reused. Please use the next sequential code."
                 )
             else:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Client Code '{code}' is already registered."
+                    detail=f"Organisation Code '{code}' is already registered."
                 )
 
         cur.execute("SELECT id FROM organizations WHERE LOWER(company_name) = %s AND is_deleted IS NOT TRUE;", (company.lower(),))
@@ -94,7 +117,7 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
 
         cur.execute("""
             INSERT INTO organizations (
-                client_code, company_name, business_type, status, onboarding_date, tax_id, contact_poc, email, phone_number,
+                organisation_code, company_name, business_type, status, onboarding_date, tax_id, contact_poc, email, phone_number,
                 website, billing_address, shipping_address, payment_terms, preferred_currency, comms_preference, is_active,
                 created_by
             ) VALUES (
@@ -199,7 +222,15 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
         return OrganizationResponse(**d)
 
 @router.put("/{org_id}", response_model=OrganizationResponse)
-def update_organization(org_id: str, payload: OrganizationUpdate):
+def update_organization(org_id: str, payload: OrganizationUpdate, current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
+    if user_role != "OEM_MANAGER":
+        if user_role not in ("ORGANISATION_OWNER", "SITE_ADMIN") or str(user_org_id) != str(org_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to modify this organisation."
+            )
     update_data = payload.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided for update.")
@@ -227,7 +258,7 @@ def update_organization(org_id: str, payload: OrganizationUpdate):
         """, tuple(params))
         row = cur.fetchone()
         if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client organization not found.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organisation not found.")
         cols = [desc[0] for desc in cur.description]
         d = dict(zip(cols, row))
         d["id"] = str(d["id"])
@@ -237,6 +268,9 @@ def update_organization(org_id: str, payload: OrganizationUpdate):
             d["deleted_by"] = str(d["deleted_by"])
         if d.get("onboarding_date"):
             d["onboarding_date"] = str(d["onboarding_date"])
+        code_val = d.get("organisation_code") or d.get("client_code")
+        d["organisation_code"] = code_val
+        d["client_code"] = code_val
         return OrganizationResponse(**d)
 
 @router.delete("/{org_id}", status_code=status.HTTP_200_OK)
@@ -244,7 +278,7 @@ def delete_organization(org_id: str, current_user: dict = Depends(get_current_us
     if current_user.get("role") != "OEM_MANAGER":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: Only OEM Managers can delete client organizations."
+            detail="Access denied: Only OEM Managers can delete organisations."
         )
     with get_db_cursor(commit=True) as cur:
         cur.execute("UPDATE machines SET organization_id = NULL WHERE organization_id = %s;", (org_id,))
@@ -259,7 +293,7 @@ def delete_organization(org_id: str, current_user: dict = Depends(get_current_us
                 status = 'Archived'
             WHERE id = %s;
         """, (current_user.get("id"), org_id))
-        return {"success": True, "message": "Client organization deleted successfully and machines unassigned.", "id": org_id}
+        return {"success": True, "message": "Organisation deleted successfully and machines unassigned.", "id": org_id}
 
 @router.post("/bulk-delete", status_code=status.HTTP_200_OK)
 def bulk_delete_organizations(payload: BulkDeleteRequest, current_user: dict = Depends(get_current_user)):

@@ -14,8 +14,12 @@ import {
   Download,
   ShieldCheck,
   UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import { MachineDetailDrawer } from '../machines/MachineDetailDrawer';
+import { AddClientUserDrawer } from './AddClientUserDrawer';
+import { EditClientUserDrawer } from './EditClientUserDrawer';
+import { DeleteUserModal } from './DeleteUserModal';
 import { invitationsApi } from '../../services/api';
 import type { Organization, Machine, User, UserInvitation } from '../../types';
 
@@ -30,6 +34,9 @@ export interface ClientDetailViewProps {
   onUnassignMachine: (machineId: string) => Promise<void>;
   onDeleteClient: () => void;
   onToggleStatus: () => Promise<void>;
+  onUserAdded?: (newUser: User, roleLabel: string) => void;
+  onUserUpdated?: (updatedUser: User, roleLabel: string) => void;
+  onUserDeleted?: (deletedUserId: string, roleLabel: string) => void;
 }
 
 export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
@@ -43,11 +50,44 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   onUnassignMachine,
   onDeleteClient,
   onToggleStatus,
+  onUserAdded,
+  onUserUpdated,
+  onUserDeleted,
 }) => {
   const navigate = useNavigate();
   const SHOW_INVITE_FEATURE = false; // Hidden for Sprint 1 demo
   const [activeTab, setActiveTab] = useState<'MACHINES' | 'USERS'>('MACHINES');
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [addUserDrawerOpen, setAddUserDrawerOpen] = useState(false);
+  const [addUserRole, setAddUserRole] = useState<'SITE_MANAGER' | 'OPERATOR'>('SITE_MANAGER');
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [activeUserMenuId, setActiveUserMenuId] = useState<string | null>(null);
+  const [localUsers, setLocalUsers] = useState<User[]>(users);
+
+  useEffect(() => {
+    setLocalUsers(users);
+  }, [users]);
+
+  const handleUserAdded = (newUser: User) => {
+    setLocalUsers((prev) => [newUser, ...prev]);
+    setActiveTab('USERS');
+    const roleTitle = newUser.role === 'SITE_MANAGER' ? 'Site Manager' : 'Operator';
+    onUserAdded?.(newUser, roleTitle);
+  };
+
+  const handleUserUpdated = (updatedUser: User) => {
+    setLocalUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    const roleTitle = getRoleLabel(updatedUser.role);
+    onUserUpdated?.(updatedUser, roleTitle);
+  };
+
+  const handleUserDeleted = (deletedUserId: string) => {
+    const deleted = localUsers.find((u) => u.id === deletedUserId);
+    setLocalUsers((prev) => prev.filter((u) => u.id !== deletedUserId));
+    const roleTitle = deleted ? getRoleLabel(deleted.role) : 'User';
+    onUserDeleted?.(deletedUserId, roleTitle);
+  };
   const [activeMachineMenuId, setActiveMachineMenuId] = useState<string | null>(null);
   const [viewingMachine, setViewingMachine] = useState<Machine | null>(null);
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
@@ -80,6 +120,9 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       const target = e.target as HTMLElement | null;
       if (!target?.closest('[data-machine-menu]')) {
         setActiveMachineMenuId(null);
+      }
+      if (!target?.closest('[data-user-menu]')) {
+        setActiveUserMenuId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -130,7 +173,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
   // Assigned fleet and client personnel
   const clientMachines = machines.filter((m) => m.organization_id === client.id);
-  const clientUsers = users.filter((u) => u.organization_id === client.id);
+  const clientUsers = localUsers.filter((u) => u.organization_id === client.id);
 
   const pendingInvitations = invitations.filter(
     (inv) =>
@@ -178,7 +221,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       'data:text/csv;charset=utf-8,' +
       [
         'Field,Value',
-        `Client ID,"${client.client_code}"`,
+        `Organisation ID,"${client.organisation_code || client.client_code}"`,
         `Company Name,"${client.company_name.replace(/"/g, '""')}"`,
         `Business Type,"${client.business_type || 'Corporate'}"`,
         `Tax ID,"${client.tax_id || ''}"`,
@@ -195,7 +238,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${client.client_code}_details_${Date.now()}.csv`);
+    link.setAttribute('download', `${client.organisation_code || client.client_code}_details_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -212,7 +255,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           onClick={onBack}
           className="hover:text-[#111827] cursor-pointer transition-colors"
         >
-          Clients
+          Organisations
         </button>
         <span className="text-[#9CA3AF]">/</span>
         <span className="font-bold text-[#111827]">{client.company_name}</span>
@@ -253,7 +296,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-xs text-[#6B7280] mt-1.5">
-              <span>{client.client_code}</span>
+              <span>{client.organisation_code || client.client_code}</span>
               <span>{client.business_type || 'Corporate'}</span>
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-[#9CA3AF]" />
@@ -285,7 +328,31 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB] flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
           >
             <Pencil className="w-3.5 h-3.5 text-[#374151]" />
-            <span>Edit client</span>
+            <span>Edit organisation</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setAddUserRole('SITE_MANAGER');
+              setAddUserDrawerOpen(true);
+            }}
+            className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+          >
+            <UserCheck className="w-3.5 h-3.5 text-[#374151]" />
+            <span>Add site manager</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setAddUserRole('OPERATOR');
+              setAddUserDrawerOpen(true);
+            }}
+            className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-[#374151]" />
+            <span>Add operator</span>
           </button>
 
           <div className="relative" ref={headerMenuRef}>
@@ -310,7 +377,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                     className="w-full px-3.5 py-2 text-left text-xs text-[#374151] hover:bg-[#F9FAFB] flex items-center gap-2 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-[#6B7280]" />
-                    <span>Export client details</span>
+                    <span>Export organisation details</span>
                   </button>
                   <button
                     type="button"
@@ -334,7 +401,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                     className="w-full px-3.5 py-2 text-left text-xs text-[#E32032] hover:bg-[#FEF2F2] flex items-center gap-2 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
-                    <span>Delete client</span>
+                    <span>Delete organisation</span>
                   </button>
                 </div>
               </div>
@@ -411,14 +478,14 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 sm:p-6 shadow-2xs">
           <h2 className="text-sm font-bold text-[#111827] mb-5 tracking-tight">
-            Client details
+            Organisation details
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-6">
             <div>
-              <span className="block text-xs text-[#6B7280]">Account number / Client ID</span>
+              <span className="block text-xs text-[#6B7280]">Account number / Organisation code</span>
               <span className="block text-xs sm:text-sm font-semibold text-[#111827] mt-1">
-                {client.client_code}
+                {client.organisation_code || client.client_code}
               </span>
             </div>
 
@@ -586,14 +653,19 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-[#111827]">Machines</h3>
                 <p className="text-xs text-[#6B7280] mt-0.5">
-                  Foodie machines leased to this client and their live status.
+                  Foodie machines leased to this organisation and their live status.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={onAssignMachine}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+                disabled
+                onClick={() => {
+                  /* Assign machine workflow disabled for Sprint 1 demo */
+                  void onAssignMachine;
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] opacity-50 cursor-not-allowed text-white flex items-center gap-1.5 shadow-none self-start sm:self-auto"
+                title="Assign machine (Will be enabled in next sprint)"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Assign machine</span>
@@ -607,7 +679,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                 </div>
                 <h4 className="text-xs font-bold text-[#111827]">No machines assigned</h4>
                 <p className="text-xs text-[#6B7280] mt-1 max-w-sm mx-auto">
-                  This client currently has no Foodie machines mapped. Click "Assign machine" above to lease units.
+                  This organisation currently has no Foodie machines mapped. Click "Assign machine" above to lease units.
                 </p>
               </div>
             ) : (
@@ -725,7 +797,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                                     }}
                                     className="w-full px-3.5 py-2 text-left text-xs text-[#E32032] hover:bg-[#FEF2F2] cursor-pointer"
                                   >
-                                    Unassign from client
+                                    Unassign from organisation
                                   </button>
                                 </div>
                               )}
@@ -748,7 +820,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-[#111827]">Users</h3>
                 <p className="text-xs text-[#6B7280] mt-0.5">
-                  Authorized personnel with access to this client's Foodie composter fleet ({clientUsers.length} active).
+                  Authorized personnel with access to this organisation's Foodie composter fleet ({clientUsers.length} active).
                 </p>
               </div>
 
@@ -793,7 +865,9 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                       <th className="py-3 px-6">Email</th>
                       <th className="py-3 px-6">Phone number</th>
                       <th className="py-3 px-6">Role</th>
+                      <th className="py-3 px-6">Location</th>
                       <th className="py-3 px-6">Status</th>
+                      <th className="py-3 px-6 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]">
@@ -825,6 +899,16 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                               )}
                             </div>
                           </td>
+                          <td className="py-4 px-6 text-[#4B5563]">
+                            {u.location ? (
+                              <div className="flex items-center gap-1.5 font-medium text-[#111827]">
+                                <MapPin className="w-3.5 h-3.5 text-[#E32032] shrink-0" />
+                                <span>{u.location}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[#9CA3AF]">—</span>
+                            )}
+                          </td>
                           <td className="py-4 px-6">
                             {u.is_active ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
@@ -837,6 +921,47 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                                 <span>Inactive</span>
                               </span>
                             )}
+                          </td>
+                          <td className="py-4 px-6 text-right relative">
+                            <div className="inline-block relative" data-user-menu>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActiveUserMenuId(activeUserMenuId === u.id ? null : u.id)
+                                }
+                                className="p-1 rounded-md text-[#6B7280] hover:text-[#111827] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+                                aria-label="User options"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </button>
+
+                              {activeUserMenuId === u.id && (
+                                <div className="absolute right-0 mt-1 w-36 bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-30 py-1 text-left">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveUserMenuId(null);
+                                      setEditingUser(u);
+                                    }}
+                                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-[#374151] hover:bg-[#F9FAFB] flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 text-[#6B7280]" />
+                                    <span>Edit user</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveUserMenuId(null);
+                                      setDeletingUser(u);
+                                    }}
+                                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-[#E32032] hover:bg-[#FEF2F2] flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
+                                    <span>Delete user</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -875,12 +1000,14 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                               )}
                             </div>
                           </td>
+                          <td className="py-4 px-6 text-[#9CA3AF]">—</td>
                           <td className="py-4 px-6">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
                               <span>Pending</span>
                             </span>
                           </td>
+                          <td className="py-4 px-6 text-right text-[#9CA3AF]">—</td>
                         </tr>
                       );
                     })}
@@ -902,6 +1029,34 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           navigate(`/machines?serial=${encodeURIComponent(m.serial_number || m.machine_code)}`);
         }}
         onDelete={() => {}}
+      />
+
+      {/* Add Site Manager / Operator Drawer */}
+      <AddClientUserDrawer
+        isOpen={addUserDrawerOpen}
+        client={client}
+        role={addUserRole}
+        existingUsers={localUsers}
+        onClose={() => setAddUserDrawerOpen(false)}
+        onSuccess={handleUserAdded}
+      />
+
+      {/* Edit User Drawer */}
+      <EditClientUserDrawer
+        isOpen={Boolean(editingUser)}
+        client={client}
+        user={editingUser}
+        existingUsers={localUsers}
+        onClose={() => setEditingUser(null)}
+        onSuccess={handleUserUpdated}
+      />
+
+      {/* Delete User Modal */}
+      <DeleteUserModal
+        isOpen={Boolean(deletingUser)}
+        user={deletingUser}
+        onClose={() => setDeletingUser(null)}
+        onSuccess={handleUserDeleted}
       />
     </div>
   );

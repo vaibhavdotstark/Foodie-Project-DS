@@ -47,6 +47,13 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(organizations.router)
+# Alias for British/Australian English spelling (/api/organisations)
+from fastapi import APIRouter
+organisations_alias = APIRouter(prefix="/api/organisations", tags=["Organisations"], dependencies=organizations.router.dependencies)
+for r in organizations.router.routes:
+    organisations_alias.add_api_route(r.path.replace("/api/organizations", ""), r.endpoint, methods=r.methods)
+app.include_router(organisations_alias)
+
 app.include_router(search.router)
 app.include_router(machines.router)
 app.include_router(dashboard.router)

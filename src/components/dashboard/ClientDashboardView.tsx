@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutGrid,
   Zap,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Building2,
   ShieldCheck,
+  MapPin,
   RefreshCw,
 } from 'lucide-react';
 import { MetricCard } from '../common/MetricCard';
@@ -28,6 +29,22 @@ export const ClientDashboardView: React.FC = () => {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const targetSerial = searchParams.get('select') || searchParams.get('serial') || searchParams.get('search') || searchParams.get('id');
+    if (targetSerial && machines.length > 0) {
+      const found = machines.find(
+        (m) =>
+          (m.id && m.id.toLowerCase() === targetSerial.toLowerCase()) ||
+          (m.serial_number && m.serial_number.toLowerCase() === targetSerial.toLowerCase()) ||
+          (m.machine_code && m.machine_code.toLowerCase() === targetSerial.toLowerCase())
+      );
+      if (found) {
+        setSelectedMachine(found);
+      }
+    }
+  }, [searchParams, machines]);
 
   const fetchData = async () => {
     try {
@@ -74,21 +91,42 @@ export const ClientDashboardView: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-5 max-w-[1400px] mx-auto pb-10">
-      {/* Top Welcome Header & Client Identity */}
+      {/* Top Welcome Header & Client Identity (Tailored by Role & Assigned Location) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-b border-[#E3E4E6] pb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-[#171717] tracking-tight">
-              Welcome, {user?.first_name ? `${user.first_name}` : (user?.company_name || 'Client')}
+              Welcome, {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.company_name || 'Team Member')}
             </h1>
-            {user?.client_code && (
+            {user?.role && (
+              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                user.role === 'SITE_MANAGER'
+                  ? 'bg-[#FEF2F2] text-[#B91C1C] border-[#FEE2E2]'
+                  : user.role === 'OPERATOR'
+                  ? 'bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]'
+                  : 'bg-slate-100 text-[#374151] border-slate-200'
+              }`}>
+                {user.role === 'SITE_MANAGER' ? 'Site Manager' : user.role === 'OPERATOR' ? 'Operator' : 'Organisation Owner'}
+              </span>
+            )}
+            {(user?.organisation_code || user?.client_code) && (
               <span className="font-mono text-xs font-bold text-[#E32032] bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
-                {user.client_code}
+                {user.organisation_code || user.client_code}
+              </span>
+            )}
+            {user?.location && (
+              <span className="inline-flex items-center gap-1 text-xs text-[#374151] font-medium bg-[#F3F4F6] border border-[#E5E7EB] px-2.5 py-0.5 rounded-full">
+                <MapPin className="w-3 h-3 text-[#E32032]" />
+                <span>{user.location}</span>
               </span>
             )}
           </div>
-          <p className="text-xs text-[#666666] mt-0.5">
-            {user?.company_name || 'Facility Operations'} · Real-time commercial composter telemetry & energy monitoring
+          <p className="text-xs text-[#666666] mt-1">
+            {user?.role === 'SITE_MANAGER'
+              ? `Site Operations for ${user?.company_name || 'Facility'}${user?.location ? ` · ${user.location}` : ''} · Commercial composter fleet telemetry & maintenance`
+              : user?.role === 'OPERATOR'
+              ? `Operational Shift for ${user?.company_name || 'Facility'}${user?.location ? ` · ${user.location}` : ''} · Equipment monitoring & load cell intake`
+              : `${user?.company_name || 'Facility Operations'} · Real-time commercial composter telemetry & energy monitoring`}
           </p>
         </div>
 
@@ -96,7 +134,13 @@ export const ClientDashboardView: React.FC = () => {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E3E4E6] px-3 py-1.5 rounded-full text-xs font-semibold text-[#171717] shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-[#00C951] animate-pulse" />
-            <span>Facility Status: Normal</span>
+            <span>
+              {user?.role === 'SITE_MANAGER'
+                ? 'Site Status: Active'
+                : user?.role === 'OPERATOR'
+                ? 'Shift: Operational'
+                : 'Facility Status: Normal'}
+            </span>
           </div>
         </div>
       </div>
@@ -356,10 +400,10 @@ export const ClientDashboardView: React.FC = () => {
                 <span className="font-bold text-[#171717]">{user?.company_name || 'Green Valley Foods'}</span>
               </div>
 
-              {user?.client_code && (
+              {(user?.organisation_code || user?.client_code) && (
                 <div>
-                  <span className="text-[11px] text-[#888888] font-medium block">Account Client Code</span>
-                  <span className="font-mono font-bold text-[#E32032]">{user.client_code}</span>
+                  <span className="text-[11px] text-[#888888] font-medium block">Account Organisation Code</span>
+                  <span className="font-mono font-bold text-[#E32032]">{user.organisation_code || user.client_code}</span>
                 </div>
               )}
 

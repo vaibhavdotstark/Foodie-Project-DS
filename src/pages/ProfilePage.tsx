@@ -124,11 +124,16 @@ export const ProfilePage: React.FC = () => {
     OPERATOR: 'Operator',
   };
 
+  const isRestrictedRole =
+    user?.role === 'SITE_ADMIN' ||
+    user?.role === 'SITE_MANAGER' ||
+    user?.role === 'OPERATOR';
+
   const displayRole = user ? roleTitleMap[user.role] || user.role : 'OEM Asset Manager';
   const displayCompany =
     user?.role === 'OEM_MANAGER'
       ? 'PowerTech Energy'
-      : (user?.company_name || 'Client Workspace');
+      : (user?.company_name || 'Organisation Workspace');
 
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return '—';
@@ -166,7 +171,7 @@ export const ProfilePage: React.FC = () => {
             Home
           </button>
           <span className="text-[#9CA3AF]">/</span>
-          <span className="font-bold text-[#171717]">OEM Manager Profile</span>
+          <span className="font-bold text-[#171717]">{user?.role === 'OEM_MANAGER' ? 'OEM Manager Profile' : 'Profile'}</span>
         </nav>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -196,14 +201,18 @@ export const ProfilePage: React.FC = () => {
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#6B7280] mt-1.5 font-medium">
-              <span className="flex items-center gap-1 text-[#171717] font-semibold">
-                <Shield className="w-3.5 h-3.5 text-[#E32032]" />
-                {displayRole}
-              </span>
-              <span className="flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5 text-[#6B7280]" />
-                {displayCompany}
-              </span>
+              {!isRestrictedRole && (
+                <>
+                  <span className="flex items-center gap-1 text-[#171717] font-semibold">
+                    <Shield className="w-3.5 h-3.5 text-[#E32032]" />
+                    {displayRole}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5 text-[#6B7280]" />
+                    {displayCompany}
+                  </span>
+                </>
+              )}
               <span className="flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-[#6B7280]" />
                 {user?.email || '—'}
@@ -294,29 +303,6 @@ export const ProfilePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-[#374151] mb-1.5">
-                    Assigned role
-                  </label>
-                  <input
-                    type="text"
-                    value={displayRole}
-                    disabled
-                    className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-3.5 py-2 text-xs font-semibold text-[#171717] cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-[#374151] mb-1.5">
-                    Organization / Workspace
-                  </label>
-                  <input
-                    type="text"
-                    value={displayCompany}
-                    disabled
-                    className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-3.5 py-2 text-xs font-semibold text-[#171717] cursor-not-allowed"
-                  />
-                </div>
               </div>
             </div>
 

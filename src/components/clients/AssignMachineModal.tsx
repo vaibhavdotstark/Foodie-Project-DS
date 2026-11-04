@@ -268,15 +268,15 @@ export const AssignMachineModal: React.FC<AssignMachineModalProps> = ({
             <div className="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-2xs">
               <div className="grid grid-cols-3 gap-4 text-xs">
                 <div>
-                  <span className="text-[#6B7280] block text-[11px] mb-1">Client</span>
+                  <span className="text-[#6B7280] block text-[11px] mb-1">Organisation</span>
                   <span className="font-semibold text-[#111827] truncate block">
                     {client.company_name}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#6B7280] block text-[11px] mb-1">Client ID</span>
+                  <span className="text-[#6B7280] block text-[11px] mb-1">Organisation ID</span>
                   <span className="font-semibold text-[#111827]">
-                    {client.client_code}
+                    {(client.organisation_code || client.client_code)}
                   </span>
                 </div>
                 <div>
@@ -295,7 +295,7 @@ export const AssignMachineModal: React.FC<AssignMachineModalProps> = ({
                   Machines to assign
                 </h3>
                 <p className="text-xs text-[#6B7280] mt-0.5 mb-3">
-                  Only machines that are not mapped to another client are listed.
+                  Only machines that are not mapped to another organisation are listed.
                 </p>
               </div>
 

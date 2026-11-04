@@ -131,7 +131,7 @@ export const MachineOnboardingPage: React.FC = () => {
 
   const orgOptions = orgs.map((o) => ({
     value: o.id,
-    label: `${o.company_name} (${o.client_code})`,
+    label: `${o.company_name} (${o.organisation_code || o.client_code})`,
   }));
 
   const siteOptions = sites.map((s) => ({
@@ -176,7 +176,7 @@ export const MachineOnboardingPage: React.FC = () => {
     }
 
     if (!formData.organization_id) {
-      errs.organization_id = 'Please select a leasing client organization';
+      errs.organization_id = 'Please select a leasing organisation';
     }
 
     if (!formData.site_id) {
@@ -375,7 +375,7 @@ export const MachineOnboardingPage: React.FC = () => {
         </div>
         <h2 className="text-lg font-bold text-[#171717]">OEM Asset Manager Scope Required</h2>
         <p className="text-xs text-[#666666] mt-2 leading-relaxed">
-          Machine hardware onboarding, PLC network provisioning, and commercial client lease agreements are strictly restricted to 
+          Machine hardware onboarding, PLC network provisioning, and commercial lease agreements are strictly restricted to 
           <strong> PowerTech Energy OEM Asset Managers</strong>.
         </p>
       </div>
@@ -389,10 +389,10 @@ export const MachineOnboardingPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-extrabold text-[#171717] flex items-center gap-2">
             <Cpu className="w-5 h-5 text-[#E32032]" />
-            Machine Onboarding & Client Lease Management
+            Machine Onboarding & Lease Management
           </h1>
           <p className="text-xs text-[#666666] mt-0.5">
-            Provision physical composter hardware, configure PLC network connectivity, and assign client lease terms.
+            Provision physical composter hardware, configure PLC network connectivity, and assign organisation lease terms.
           </p>
         </div>
 
@@ -499,13 +499,13 @@ export const MachineOnboardingPage: React.FC = () => {
             <div className="flex items-center gap-2 pb-2 mb-4 border-b border-[#E3E4E6]">
               <FileText className="w-4 h-4 text-[#00C951]" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#171717]">
-                2. Client Commercial Lease & Facility Deployment
+                2. Commercial Lease & Facility Deployment
               </h3>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <SelectField
-                label="Client Organization"
+                label="Organisation"
                 required
                 options={orgOptions}
                 value={formData.organization_id}
@@ -611,7 +611,7 @@ export const MachineOnboardingPage: React.FC = () => {
                 <th className="py-3 px-5">Asset ID</th>
                 <th className="py-3 px-5">Model / Capacity</th>
                 <th className="py-3 px-5">Serial & PLC IP</th>
-                <th className="py-3 px-5">Client & Site Location</th>
+                <th className="py-3 px-5">Organisation & Site Location</th>
                 <th className="py-3 px-5">Lease Term</th>
                 <th className="py-3 px-5">Lease Status</th>
                 <th className="py-3 px-5">Connectivity</th>
@@ -852,7 +852,7 @@ export const MachineOnboardingPage: React.FC = () => {
                     Assigned Customer Organization
                   </span>
                   <span className="text-xs font-bold text-[#171717] mt-1 block">
-                    {editingMachine.company_name} ({editingMachine.client_code})
+                    {editingMachine.company_name} ({editingMachine.organisation_code || editingMachine.client_code})
                   </span>
                 </div>
 
@@ -967,7 +967,7 @@ export const MachineOnboardingPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <SelectField
-                    label="Client Organization"
+                    label="Organisation"
                     required
                     options={orgOptions}
                     value={editFormData.organization_id}

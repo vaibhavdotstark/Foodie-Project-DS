@@ -34,10 +34,10 @@ export const DeleteClientModal: React.FC<DeleteClientModalProps> = ({
 
   const isMultiple = clientsToDelete.length > 1;
   const title = isMultiple
-    ? `Delete ${clientsToDelete.length} clients?`
+    ? `Delete ${clientsToDelete.length} organisations?`
     : `Delete ${clientsToDelete[0].company_name}?`;
 
-  const buttonLabel = isMultiple ? 'Delete clients' : 'Delete client';
+  const buttonLabel = isMultiple ? 'Delete organisations' : 'Delete organisation';
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -52,7 +52,7 @@ export const DeleteClientModal: React.FC<DeleteClientModalProps> = ({
       onSuccess(ids);
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Failed to delete client record(s).');
+      setError(err?.message || 'Failed to delete organisation record(s).');
     } finally {
       setIsDeleting(false);
     }
@@ -80,7 +80,7 @@ export const DeleteClientModal: React.FC<DeleteClientModalProps> = ({
 
         {/* Explanatory Text */}
         <p className="text-xs sm:text-[13px] text-[#4B5563] mt-3 leading-relaxed">
-          The client record is archived for 30 days and then permanently removed, along with its contacts. Machines and their history stay with PowerTech Energy and are unassigned. Every deletion is recorded in the audit log.
+          The organisation record is archived for 30 days and then permanently removed, along with its contacts. Machines and their history stay with PowerTech Energy and are unassigned. Every deletion is recorded in the audit log.
         </p>
 
         {/* Error Alert */}

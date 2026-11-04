@@ -213,7 +213,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     e.preventDefault();
 
     if (!clientCode.trim()) {
-      setError('Account number / Client ID is required.');
+      setError('Account number / Organisation ID is required.');
       return;
     }
     if (!companyName.trim()) {
@@ -311,7 +311,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         },
       ]);
     } catch (err: any) {
-      setError(err?.message || 'Failed to create client organization.');
+      setError(err?.message || 'Failed to create organisation.');
     } finally {
       setIsSubmitting(false);
     }
@@ -339,10 +339,10 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
           <div className="px-8 py-5 border-b border-[#E3E4E6] flex items-center justify-between bg-white flex-shrink-0">
             <div>
               <h3 className="text-xl font-bold text-[#171717] tracking-tight">
-                Add new client
+                Add new organisation
               </h3>
               <p className="text-xs text-[#666666] mt-0.5">
-                Create the client record and assign Foodie machines to it.
+                Create the organisation record and assign Foodie machines to it.
               </p>
             </div>
             <button
@@ -370,16 +370,16 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
             className="flex-1 overflow-y-auto p-8 space-y-6 text-xs"
           >
             
-            {/* Client details */}
+            {/* Organisation details */}
             <div>
               <h4 className="text-sm font-bold text-[#171717] mb-3.5">
-                Client details
+                Organisation details
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 
                 <div>
                   <label className="block text-xs font-semibold text-[#171717] mb-1.5">
-                    Client ID
+                    Organisation ID
                   </label>
                   <input
                     type="text"
@@ -604,10 +604,10 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
             <div>
               <div className="mb-3">
                 <h4 className="text-sm font-bold text-[#171717]">
-                  Add Foodie to the client
+                  Add Foodie to the organisation
                 </h4>
                 <p className="text-xs text-[#666666] mt-0.5">
-                  Assign a new machine to a new row for this client.
+                  Assign a new machine to a new row for this organisation.
                 </p>
               </div>
 

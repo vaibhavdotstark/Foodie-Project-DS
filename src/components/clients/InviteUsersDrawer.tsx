@@ -146,13 +146,13 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
     }
 
     if (ownerInvites.length > 1) {
-      setError('Only one Organisation Owner can be invited for this client organization.');
+      setError('Only one Organisation Owner can be invited for this organisation.');
       return;
     }
 
     if (ownerInvites.length > 0 && hasExistingOwner) {
       setError(
-        `This client organization already has an assigned Organisation Owner (${existingOwnerEmail}).`
+        `This organisation already has an assigned Organisation Owner (${existingOwnerEmail}).`
       );
       return;
     }

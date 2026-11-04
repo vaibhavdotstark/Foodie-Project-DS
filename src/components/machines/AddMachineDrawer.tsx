@@ -361,7 +361,7 @@ export const AddMachineDrawer: React.FC<AddMachineDrawerProps> = ({
                       value={formData.location_description}
                       onChange={handleChange}
                       rows={3}
-                      placeholder="e.g. Installed at the carpark shed of the client's location"
+                      placeholder="e.g. Installed at the carpark shed of the organisation's location"
                       className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all resize-y min-h-[72px]"
                     />
                   </div>
@@ -486,7 +486,7 @@ export const AddMachineDrawer: React.FC<AddMachineDrawerProps> = ({
                       value={formData.notes}
                       onChange={handleChange}
                       rows={3}
-                      placeholder="e.g. Client wanted more training for their new staff"
+                      placeholder="e.g. Organisation wanted more training for their new staff"
                       className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all resize-y min-h-[72px]"
                     />
                   </div>

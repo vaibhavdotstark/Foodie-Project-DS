@@ -71,7 +71,7 @@ export const OemDashboardView: React.FC = () => {
             Welcome, {user ? `${user.first_name} ${user.last_name}` : 'PowerTech Admin'}
           </h1>
           <p className="text-xs text-[#888888] mt-0.5">
-            Fleet overview across all clients · Live database &amp; telemetry
+            Fleet overview across all organisations · Live database &amp; telemetry
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export const OemDashboardView: React.FC = () => {
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-[#D1D5DB] bg-white text-[#171717] hover:bg-[#F9FAFB] transition-all cursor-pointer shadow-2xs"
           >
             <Plus className="w-3.5 h-3.5 text-[#171717]" />
-            <span>Add client</span>
+            <span>Add new organisation</span>
           </button>
 
           <button
@@ -101,7 +101,7 @@ export const OemDashboardView: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <MetricCard
           id="metric-clients"
-          title="Clients"
+          title="Organisations"
           value={dashboardStats ? dashboardStats.total_clients : organizations.length}
           subtitle={
             dashboardStats
@@ -109,7 +109,7 @@ export const OemDashboardView: React.FC = () => {
               : 'All active accounts'
           }
           icon={Users}
-          onClick={() => navigate('/clients')}
+          onClick={() => navigate('/organisations')}
         />
 
         <MetricCard
@@ -145,7 +145,7 @@ export const OemDashboardView: React.FC = () => {
           }
           subtitle={
             dashboardStats && dashboardStats.open_alerts_count > 0
-              ? `Across ${dashboardStats.alert_clients_count} client${dashboardStats.alert_clients_count === 1 ? '' : 's'}`
+              ? `Across ${dashboardStats.alert_clients_count} organisation${dashboardStats.alert_clients_count === 1 ? '' : 's'}`
               : 'All systems normal'
           }
           icon={Bell}
@@ -167,23 +167,23 @@ export const OemDashboardView: React.FC = () => {
 
       {/* Main 2-Column Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column (67% Width): Energy usage + Recently onboarded clients */}
+        {/* Left Column (67% Width): Energy usage + Recently onboarded organisations */}
         <div className="lg:col-span-8 flex flex-col gap-5">
           {/* 1. Live 14-Day Fleet Energy Usage Smooth Area Curve Chart */}
           <FleetEnergyChart data={dashboardStats?.energy_history_14d || []} />
 
-          {/* 2. Recently Onboarded Clients Table (Live from PostgreSQL) */}
+          {/* 2. Recently Onboarded Organisations Table (Live from PostgreSQL) */}
           <div className="bg-white rounded-xl border border-[#E3E4E6] p-5 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-[#F3F4F6]">
               <h2 className="text-sm font-bold text-[#171717]">
-                Recently onboarded clients
+                Recently onboarded organisations
               </h2>
               <button
                 type="button"
-                onClick={() => navigate('/clients')}
+                onClick={() => navigate('/organisations')}
                 className="text-xs font-bold text-[#E32032] hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <span>All clients</span>
+                <span>All organisations</span>
                 <span className="text-sm">→</span>
               </button>
             </div>
@@ -192,14 +192,14 @@ export const OemDashboardView: React.FC = () => {
               {recentClients.length === 0 ? (
                 <div className="py-8 text-center text-[#888888] text-xs">
                   {isLoading
-                    ? 'Loading live clients...'
-                    : 'No clients onboarded yet. Click "Add client" above to onboard your first client.'}
+                    ? 'Loading live organisations...'
+                    : 'No organisations onboarded yet. Click "Add new organisation" above to onboard your first organisation.'}
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-[#E5E7EB] text-[11px] font-bold text-[#6B7280]">
-                      <th className="py-2.5 px-3 font-semibold">Client ID</th>
+                      <th className="py-2.5 px-3 font-semibold">Organisation code</th>
                       <th className="py-2.5 px-3 font-semibold">Company name</th>
                       <th className="py-2.5 px-3 font-semibold">Onboarding date</th>
                       <th className="py-2.5 px-3 font-semibold">Machines</th>
@@ -210,12 +210,12 @@ export const OemDashboardView: React.FC = () => {
                     {recentClients.map((client) => (
                       <tr
                         key={client.id}
-                        onClick={() => navigate(`/clients?select=${client.id}`)}
+                        onClick={() => navigate(`/organisations?select=${client.id}`)}
                         className="hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                       >
                         <td className="py-2.5 px-3">
                           <span className="font-bold text-[#E32032] underline hover:text-[#C1121F]">
-                            {client.client_code}
+                            {client.organisation_code || client.client_code}
                           </span>
                         </td>
                         <td className="py-2.5 px-3 font-medium text-[#171717]">
@@ -354,7 +354,7 @@ export const OemDashboardView: React.FC = () => {
         onSuccess={(newOrg) => {
           fetchData();
           setToast({
-            message: `Client ${newOrg.company_name} (${newOrg.client_code}) added successfully!`,
+            message: `Organisation ${newOrg.company_name} (${newOrg.organisation_code || newOrg.client_code}) added successfully!`, 
             type: 'success',
           });
         }}

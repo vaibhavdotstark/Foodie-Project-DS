@@ -128,7 +128,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
       onSuccess(updated);
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Failed to update client organization.');
+      setError(err?.message || 'Failed to update organisation.');
     } finally {
       setIsSubmitting(false);
     }
@@ -155,10 +155,10 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
           <div className="px-8 py-6 border-b border-[#E5E7EB] flex items-start justify-between bg-white shrink-0">
             <div>
               <h2 className="text-xl font-bold text-[#111827] tracking-tight">
-                Edit client
+                Edit organisation
               </h2>
               <p className="text-xs text-[#6B7280] mt-1">
-                {client.client_code} · {client.company_name}
+                {(client.organisation_code || client.client_code)} · {client.company_name}
               </p>
             </div>
             <button
@@ -185,7 +185,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
               {/* Client details */}
               <div>
                 <h3 className="text-sm font-bold text-[#111827] tracking-tight mb-4">
-                  Client details
+                  Organisation details
                 </h3>
 
                 <div className="space-y-4">

@@ -29,7 +29,8 @@ class UpcomingMaintenance(BaseModel):
 
 class RecentClient(BaseModel):
     id: str
-    client_code: str
+    client_code: Optional[str] = None
+    organisation_code: Optional[str] = None
     company_name: str
     onboard_date: str
     machines_count: int
@@ -54,8 +55,14 @@ class DashboardStatsResponse(BaseModel):
 @router.get("/stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     with get_db_cursor() as cur:
-        is_client = current_user.get("role") != "OEM_MANAGER" and bool(current_user.get("organization_id"))
-        client_org_id = current_user.get("organization_id") if is_client else None
+        user_role = current_user.get("role")
+        user_org_id = current_user.get("organization_id")
+        user_site_id = current_user.get("site_id")
+        user_loc = (current_user.get("location") or "").strip()
+        is_oem = user_role == "OEM_MANAGER"
+        is_site_scoped = user_role in ("SITE_MANAGER", "OPERATOR")
+        is_client = not is_oem and bool(user_org_id)
+        client_org_id = user_org_id if is_client else None
 
         # 1. Clients Metrics
         if is_client:
@@ -73,18 +80,32 @@ def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             """)
             clients_this_month = cur.fetchone()[0]
 
-        # 2. Machines Metrics
-        if is_client:
-            cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s;", (client_org_id,))
-            total_machines = cur.fetchone()[0]
-
-            cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND LOWER(COALESCE(connectivity_status, 'offline')) = 'online';", (client_org_id,))
-            online_machines = cur.fetchone()[0]
-        else:
+        # 2. Machines Metrics (Strictly scoped by role and site/location per Brian Okinyi spec)
+        if is_oem:
             cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE;")
             total_machines = cur.fetchone()[0]
-
             cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND LOWER(COALESCE(connectivity_status, 'offline')) = 'online';")
+            online_machines = cur.fetchone()[0]
+        elif is_site_scoped:
+            if user_site_id:
+                cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND site_id = %s;", (user_org_id, user_site_id))
+                total_machines = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND site_id = %s AND LOWER(COALESCE(connectivity_status, 'offline')) = 'online';", (user_org_id, user_site_id))
+                online_machines = cur.fetchone()[0]
+            elif user_loc:
+                cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND LOWER(COALESCE(location_label, '')) LIKE %s;", (user_org_id, f"%{user_loc.lower()}%"))
+                total_machines = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND LOWER(COALESCE(location_label, '')) LIKE %s AND LOWER(COALESCE(connectivity_status, 'offline')) = 'online';", (user_org_id, f"%{user_loc.lower()}%"))
+                online_machines = cur.fetchone()[0]
+            else:
+                cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s;", (user_org_id,))
+                total_machines = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND LOWER(COALESCE(connectivity_status, 'offline')) = 'online';", (user_org_id,))
+                online_machines = cur.fetchone()[0]
+        else: # ORGANISATION_OWNER / SITE_ADMIN
+            cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s;", (user_org_id,))
+            total_machines = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM machines WHERE is_deleted IS NOT TRUE AND organization_id = %s AND LOWER(COALESCE(connectivity_status, 'offline')) = 'online';", (user_org_id,))
             online_machines = cur.fetchone()[0]
 
         offline_machines = max(total_machines - online_machines, 0)
@@ -294,7 +315,7 @@ def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             cur.execute("""
                 SELECT 
                     o.id::text,
-                    o.client_code,
+                    o.organisation_code,
                     o.company_name,
                     TO_CHAR(COALESCE(o.onboarding_date, o.created_at::DATE), 'FMDD Mon YYYY') AS onboard_date,
                     COUNT(m.id) AS machines_count,
@@ -302,8 +323,8 @@ def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 FROM organizations o
                 LEFT JOIN machines m ON o.id = m.organization_id AND m.is_deleted IS NOT TRUE
                 WHERE o.is_deleted IS NOT TRUE
-                GROUP BY o.id, o.client_code, o.company_name, o.onboarding_date, o.created_at, o.status
-                ORDER BY COALESCE(o.onboarding_date, o.created_at::DATE) DESC, o.client_code DESC
+                GROUP BY o.id, o.organisation_code, o.company_name, o.onboarding_date, o.created_at, o.status
+                ORDER BY COALESCE(o.onboarding_date, o.created_at::DATE) DESC, o.organisation_code DESC
                 LIMIT 5;
             """)
             client_rows = cur.fetchall()
@@ -311,6 +332,7 @@ def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
                 RecentClient(
                     id=r[0],
                     client_code=r[1],
+                    organisation_code=r[1],
                     company_name=r[2],
                     onboard_date=r[3],
                     machines_count=r[4],

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MasterLayout } from './components/layout/MasterLayout';
 import { LoginPage } from './pages/LoginPage';
@@ -11,6 +12,12 @@ import { ProfilePage } from './pages/ProfilePage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { PlaceholderView } from './components/common/PlaceholderView';
 import { SessionTimeoutTracker } from './components/auth/SessionTimeoutTracker';
+
+const ClientsRedirect: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.toString();
+  return <Navigate to={`/organisations${query ? `?${query}` : ''}`} replace />;
+};
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({
   children,
@@ -74,13 +81,14 @@ export const AppContent: React.FC = () => {
           }
         />
         <Route
-          path="clients"
+          path="organisations"
           element={
             <ProtectedRoute adminOnly>
               <ClientsPage />
             </ProtectedRoute>
           }
         />
+        <Route path="clients" element={<ClientsRedirect />} />
         <Route
           path="profile"
           element={

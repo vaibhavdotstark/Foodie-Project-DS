@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/machines", tags=["Machines"], dependencies=[Depe
 SQL_SELECT_MACHINE_JOINED = """
     SELECT 
         m.id, m.machine_code, m.serial_number, m.model_id, m.model, m.capacity, m.hardware_version,
-        m.organization_id, o.client_code, o.company_name,
+        m.organization_id, o.organisation_code, o.company_name,
         m.site_id, s.site_name,
         m.location_label, m.location_description,
         m.plc_software_version, m.energy_meter_model, m.deodor_model, m.extractor_model,
@@ -33,6 +33,9 @@ SQL_SELECT_MACHINE_JOINED = """
 def row_to_machine_dict(cols, row) -> dict:
     d = dict(zip(cols, row))
     d["id"] = str(d["id"])
+    code_val = d.get("organisation_code") or d.get("client_code")
+    d["organisation_code"] = code_val
+    d["client_code"] = code_val
     if d.get("model_id"):
         d["model_id"] = str(d["model_id"])
     if d.get("organization_id"):
@@ -102,11 +105,17 @@ def get_all_machines(current_user: dict = Depends(get_current_user)):
                 f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s ORDER BY m.created_at DESC, m.machine_code DESC;",
                 (user_org_id,)
             )
-        else: # SITE_MANAGER or OPERATOR scoped to their site
+        else: # SITE_MANAGER or OPERATOR scoped strictly to their assigned site or location
+            user_loc = (current_user.get("location") or "").strip()
             if user_site_id:
                 cur.execute(
                     f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s AND m.site_id = %s ORDER BY m.created_at DESC, m.machine_code DESC;",
                     (user_org_id, user_site_id)
+                )
+            elif user_loc:
+                cur.execute(
+                    f"{SQL_SELECT_MACHINE_JOINED} WHERE (m.is_deleted IS NOT TRUE) AND m.organization_id = %s AND LOWER(COALESCE(m.location_label, '')) LIKE %s ORDER BY m.created_at DESC, m.machine_code DESC;",
+                    (user_org_id, f"%{user_loc.lower()}%")
                 )
             else:
                 cur.execute(
@@ -118,7 +127,12 @@ def get_all_machines(current_user: dict = Depends(get_current_user)):
         return [MachineResponse(**row_to_machine_dict(cols, r)) for r in rows]
 
 @router.get("/{machine_id}", response_model=MachineResponse)
-def get_machine(machine_id: str):
+def get_machine(machine_id: str, current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
+    user_site_id = current_user.get("site_id")
+    user_loc = (current_user.get("location") or "").strip().lower()
+
     with get_db_cursor() as cur:
         cur.execute(f"{SQL_SELECT_MACHINE_JOINED} WHERE m.id = %s AND (m.is_deleted IS NOT TRUE);", (machine_id,))
         row = cur.fetchone()
@@ -128,10 +142,32 @@ def get_machine(machine_id: str):
                 detail=f"Machine with ID '{machine_id}' not found."
             )
         cols = [desc[0] for desc in cur.description]
-        return MachineResponse(**row_to_machine_dict(cols, row))
+        mach_dict = row_to_machine_dict(cols, row)
+
+        if user_role != "OEM_MANAGER":
+            if str(mach_dict.get("organization_id")) != str(user_org_id):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Machine belongs to another organisation.")
+            if user_role in ("SITE_MANAGER", "OPERATOR"):
+                m_site = mach_dict.get("site_id")
+                m_loc = (mach_dict.get("location_label") or "").strip().lower()
+                if user_site_id and m_site and str(m_site) == str(user_site_id):
+                    pass
+                elif user_loc and m_loc and (user_loc in m_loc or m_loc in user_loc):
+                    pass
+                elif not user_site_id and not user_loc:
+                    pass
+                else:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: You are not assigned to this machine's site or location.")
+
+        return MachineResponse(**mach_dict)
 
 @router.post("", response_model=MachineResponse, status_code=status.HTTP_201_CREATED)
 def create_machine(payload: MachineCreate, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "OEM_MANAGER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Only OEM Managers can add machines to fleet inventory."
+        )
     normalized_serial = payload.serial_number.strip().upper()
     raw_code = payload.machine_code or payload.serial_number
     normalized_code = raw_code.strip().upper()
@@ -228,9 +264,46 @@ def create_machine(payload: MachineCreate, current_user: dict = Depends(get_curr
         return MachineResponse(**row_to_machine_dict(cols, row))
 
 @router.put("/{machine_id}", response_model=MachineResponse)
-def update_machine(machine_id: str, payload: MachineUpdate):
+def update_machine(machine_id: str, payload: MachineUpdate, current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role")
+    user_org_id = current_user.get("organization_id")
+    user_site_id = current_user.get("site_id")
+    user_loc = (current_user.get("location") or "").strip().lower()
+
+    if user_role == "OPERATOR":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Operators have read-only access and cannot modify machine configuration."
+        )
+
     with get_db_cursor(commit=True) as cur:
-        cur.execute("SELECT id, model, capacity FROM machines WHERE id = %s;", (machine_id,))
+        cur.execute("SELECT id, model, capacity, organization_id, site_id, location_label FROM machines WHERE id = %s AND (is_deleted IS NOT TRUE);", (machine_id,))
+        existing = cur.fetchone()
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Machine with ID '{machine_id}' not found."
+            )
+
+        m_id, existing_model, existing_cap, mach_org_id, mach_site_id, mach_loc = existing
+
+        if user_role != "OEM_MANAGER":
+            if str(mach_org_id) != str(user_org_id):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Machine belongs to another organisation.")
+
+            if "organization_id" in payload.model_fields_set and payload.organization_id != mach_org_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: Only OEM Managers can transfer machines between organisations.")
+
+            if user_role == "SITE_MANAGER":
+                loc_clean = (mach_loc or "").strip().lower()
+                if user_site_id and mach_site_id and str(mach_site_id) == str(user_site_id):
+                    pass
+                elif user_loc and loc_clean and (user_loc in loc_clean or loc_clean in user_loc):
+                    pass
+                elif not user_site_id and not user_loc:
+                    pass
+                else:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: You can only manage machines at your assigned location.")
         existing = cur.fetchone()
         if not existing:
             raise HTTPException(

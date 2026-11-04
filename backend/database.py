@@ -87,15 +87,15 @@ def init_db():
                 ON CONFLICT (model_code) DO NOTHING;
             """, (code, name, cap))
 
-        cur.execute("SELECT id FROM organizations WHERE client_code = 'CL-0001';")
+        cur.execute("SELECT id FROM organizations WHERE organisation_code = 'ORG-0001';")
         org = cur.fetchone()
         if not org:
             cur.execute("""
                 INSERT INTO organizations (
-                    client_code, company_name, tax_id, contact_poc, email, phone_number,
+                    organisation_code, company_name, tax_id, contact_poc, email, phone_number,
                     website, billing_address, shipping_address, payment_terms, preferred_currency, is_active
                 ) VALUES (
-                    'CL-0001', 'Green Valley Foods Pty Ltd', 'ABN 12 345 678 901', 'Jordan Smith',
+                    'ORG-0001', 'Green Valley Foods Pty Ltd', 'ABN 12 345 678 901', 'Jordan Smith',
                     'jordan@greenvalley.example', '+61 8 8200 1100', 'https://greenvalley.example',
                     'Railway Ave, Mount Isa QLD 4825', 'Railway Ave, Mount Isa QLD 4825', '30 days', 'AUD', true
                 ) RETURNING id;
@@ -130,6 +130,8 @@ def init_db():
             """, (org_id, pw_hash))
 
         cur.execute("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP WITH TIME ZONE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
@@ -148,7 +150,7 @@ def init_db():
             ALTER TABLE organizations ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
             ALTER TABLE organizations ALTER COLUMN contact_poc DROP NOT NULL;
             ALTER TABLE organizations DROP CONSTRAINT IF EXISTS organizations_client_code_key;
-            CREATE UNIQUE INDEX IF NOT EXISTS organizations_client_code_active_unique ON organizations (UPPER(client_code)) WHERE (is_deleted IS NOT TRUE);
+            CREATE UNIQUE INDEX IF NOT EXISTS organizations_client_code_active_unique ON organizations (UPPER(organisation_code)) WHERE (is_deleted IS NOT TRUE);
             ALTER TABLE machines ALTER COLUMN capacity DROP NOT NULL;
             ALTER TABLE machines ALTER COLUMN hardware_version DROP DEFAULT;
             ALTER TABLE machines ALTER COLUMN operational_status SET DEFAULT 'Idle';

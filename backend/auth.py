@@ -53,7 +53,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
     with get_db_cursor() as cur:
         cur.execute("""
-            SELECT id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at
+            SELECT id, organization_id, site_id, email, first_name, last_name, role, phone_number, location, is_active, token_version, last_login_at, created_at, updated_at
             FROM users WHERE id = %s;
         """, (user_id,))
         row = cur.fetchone()
@@ -67,4 +67,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             d["organization_id"] = str(d["organization_id"])
         if d.get("site_id"):
             d["site_id"] = str(d["site_id"])
+
+        if not d.get("is_active"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account has been deactivated.")
+
+        # Invalidate sessions whose token_version has been revoked/incremented (e.g. on logout or password change)
+        token_tv = payload.get("token_version")
+        db_tv = d.get("token_version")
+        if token_tv is not None and db_tv is not None:
+            if int(token_tv) != int(db_tv):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session expired or terminated upon logout. Please sign in again."
+                )
+
         return d

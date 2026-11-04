@@ -70,7 +70,7 @@ export const SiteRegistrationPage: React.FC = () => {
     const errs: Partial<Record<keyof SiteFormData, string>> = {};
 
     if (!formData.organization_id.trim()) {
-      errs.organization_id = 'Please select a client organization';
+      errs.organization_id = 'Please select an organisation';
     }
 
     if (!formData.site_code.trim()) {
@@ -210,7 +210,7 @@ export const SiteRegistrationPage: React.FC = () => {
 
   const orgOptions = orgs.map((o) => ({
     value: o.id,
-    label: `${o.company_name} (${o.client_code})`,
+    label: `${o.company_name} (${o.organisation_code || o.client_code})`,
   }));
 
   const timezoneOptions = [
@@ -231,7 +231,7 @@ export const SiteRegistrationPage: React.FC = () => {
             Site & Facility Registration
           </h1>
           <p className="text-xs text-[#666666] mt-0.5">
-            Register and manage physical composter facilities across client locations.
+            Register and manage physical composter facilities across organisation locations.
           </p>
         </div>
 
@@ -259,13 +259,13 @@ export const SiteRegistrationPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SelectField
-              label="Client Organization"
+              label="Organisation"
               required
               options={orgOptions}
               value={formData.organization_id}
               onChange={(e) => setFormData({ ...formData, organization_id: e.target.value })}
               error={errors.organization_id}
-              helperText="The client enterprise owning this facility"
+              helperText="The enterprise organisation owning this facility"
             />
 
             <InputField
@@ -346,7 +346,7 @@ export const SiteRegistrationPage: React.FC = () => {
         <div className="px-6 py-4 border-b border-[#E3E4E6] bg-[#FAFAFA] flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-[#171717]">Registered Sites Database</h2>
-            <p className="text-[11px] text-[#666666]">View, edit, or manage client installation facilities</p>
+            <p className="text-[11px] text-[#666666]">View, edit, or manage organisation installation facilities</p>
           </div>
           <span className="text-xs font-bold text-[#666666] bg-white border border-[#E3E4E6] px-2.5 py-1 rounded">
             {sites.length} Records

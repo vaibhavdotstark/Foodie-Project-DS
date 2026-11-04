@@ -238,7 +238,7 @@ def verify_invitation(token: str = Query(..., description="Invitation token")):
     with get_db_cursor() as cur:
         cur.execute("""
             SELECT i.id, i.organization_id, i.site_id, s.site_name, i.email, i.role, i.status, i.expires_at,
-                   o.company_name, o.client_code
+                   o.company_name, o.organisation_code
             FROM user_invitations i
             JOIN organizations o ON i.organization_id = o.id
             LEFT JOIN sites s ON i.site_id = s.id
@@ -268,7 +268,8 @@ def verify_invitation(token: str = Query(..., description="Invitation token")):
             site_id=str(site_id) if site_id else None,
             site_name=site_name,
             company_name=company_name,
-            client_code=client_code
+            client_code=client_code,
+            organisation_code=client_code
         )
 
 # Accept invitation, create password hash, and establish session
@@ -289,7 +290,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
             SELECT i.id, i.organization_id, i.site_id, i.email, i.role, i.status, i.expires_at,
-                   o.company_name, o.client_code, i.invited_by
+                   o.company_name, o.organisation_code, i.invited_by
             FROM user_invitations i
             JOIN organizations o ON i.organization_id = o.id
             WHERE i.token = %s;
@@ -370,6 +371,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
             user_dict["site_id"] = str(user_dict["site_id"])
         user_dict["company_name"] = company_name
         user_dict["client_code"] = client_code
+        user_dict["organisation_code"] = client_code
 
         cur.execute("""
             UPDATE user_invitations
@@ -385,7 +387,9 @@ def accept_invitation(payload: AcceptInvitationRequest):
             "organization_id": user_dict["organization_id"],
             "site_id": user_dict.get("site_id"),
             "company_name": company_name,
-            "client_code": client_code
+            "client_code": client_code,
+            "organisation_code": client_code,
+            "token_version": user_dict.get("token_version", 1)
         })
 
         return LoginResponse(

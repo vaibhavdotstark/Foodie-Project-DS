@@ -34,6 +34,7 @@ export interface VerifyInvitationData {
   site_name?: string;
   company_name: string;
   client_code: string;
+  organisation_code?: string;
 }
 
 export interface AcceptInvitationPayload {
@@ -42,6 +43,7 @@ export interface AcceptInvitationPayload {
   last_name: string;
   password: string;
   phone_number?: string;
+  location?: string | null;
 }
 
 export type MachineStatus = 'RUNNING' | 'IDLE' | 'HALTED' | 'MAINTENANCE' | 'UNKNOWN';
@@ -67,6 +69,7 @@ export interface MachineModel {
 export interface Organization {
   id: string;
   client_code: string;
+  organisation_code?: string;
   company_name: string;
   onboarding_date?: string;
   business_type?: 'Corporate' | 'Individual';
@@ -75,6 +78,7 @@ export interface Organization {
   contact_poc: string;
   email: string;
   phone_number?: string;
+  location?: string | null;
   website?: string;
   billing_address?: string;
   shipping_address?: string;
@@ -99,12 +103,14 @@ export interface MachineAssignmentItem {
 
 export interface OrganizationCreateData {
   client_code: string;
+  organisation_code?: string;
   company_name: string;
   onboarding_date?: string;
   business_type?: 'Corporate' | 'Individual';
   tax_id?: string;
   contact_poc?: string;
   phone_number?: string;
+  location?: string | null;
   email?: string;
   website?: string;
   billing_address?: string;
@@ -138,9 +144,11 @@ export interface User {
   last_name: string;
   role: UserRole;
   phone_number?: string;
+  location?: string | null;
   is_active: boolean;
   company_name?: string | null;
   client_code?: string | null;
+  organisation_code?: string | null;
   last_login_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -177,6 +185,7 @@ export interface Machine {
   plc_ip?: string | null;
   organization_id: string | null;
   client_code?: string | null;
+  organisation_code?: string | null;
   company_name?: string | null;
   site_id?: string | null;
   site_code?: string | null;
@@ -260,6 +269,7 @@ export interface UpcomingMaintenanceItem {
 export interface RecentClientItem {
   id: string;
   client_code: string;
+  organisation_code?: string;
   company_name: string;
   onboard_date: string;
   machines_count: number;

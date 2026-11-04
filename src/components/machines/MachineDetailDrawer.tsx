@@ -146,7 +146,7 @@ export const MachineDetailDrawer: React.FC<MachineDetailDrawerProps> = ({
                 <div>
                   <span className="text-[#6B7280] block text-[11px]">Fleet Assignment</span>
                   <span className="font-semibold text-[#171717]">
-                    {machine.company_name ? `${machine.company_name} (${machine.client_code || 'Assigned'})` : 'Available (Unassigned)'}
+                    {machine.company_name ? `${machine.company_name} (${machine.organisation_code || machine.client_code || 'Assigned'})` : 'Available (Unassigned)'}
                   </span>
                 </div>
               </div>

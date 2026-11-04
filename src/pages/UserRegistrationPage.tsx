@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Users, UserPlus, Trash2, CheckCircle2, Shield, Phone, Mail, Eye, Edit2, X, Lock, Save, Loader2, Building2 } from 'lucide-react';
 import { InputField } from '../components/common/InputField';
 import { SelectField } from '../components/common/SelectField';
@@ -51,6 +52,21 @@ export const UserRegistrationPage: React.FC = () => {
     is_active: true,
   });
   const [editErrors, setEditErrors] = useState<{ first_name?: string; last_name?: string }>({});
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const target = searchParams.get('select') || searchParams.get('search');
+    if (target && users.length > 0) {
+      const found = users.find(
+        (u) =>
+          u.id === target ||
+          u.email.toLowerCase() === target.toLowerCase()
+      );
+      if (found) {
+        handleOpenView(found);
+      }
+    }
+  }, [searchParams, users]);
 
   const loadData = async () => {
     try {
@@ -107,7 +123,7 @@ export const UserRegistrationPage: React.FC = () => {
 
   const orgOptions = orgs.map((o) => ({
     value: o.id,
-    label: `${o.company_name} (${o.client_code})`,
+    label: `${o.company_name} (${o.organisation_code || o.client_code})`,
   }));
 
   const siteOptions = sites.map((s) => ({
@@ -386,7 +402,7 @@ export const UserRegistrationPage: React.FC = () => {
           {formData.role !== 'OEM_MANAGER' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 border border-[#E3E4E6] rounded-lg">
               <SelectField
-                label="Client Organization"
+                label="Organisation"
                 required
                 options={orgOptions}
                 value={formData.organization_id}
@@ -456,7 +472,7 @@ export const UserRegistrationPage: React.FC = () => {
             </h2>
             <p className="text-[11px] text-[#666666]">
               {isOem
-                ? 'View, edit, or manage client, admin, and operator credentials'
+                ? 'View, edit, or manage organisation, admin, and operator credentials'
                 : 'View, edit, or manage facility operator credentials'}
             </p>
           </div>

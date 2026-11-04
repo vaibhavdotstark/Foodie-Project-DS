@@ -39,7 +39,7 @@ export const MachinesPage: React.FC = () => {
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [clientFilter, setClientFilter] = useState<string>('All clients');
+  const [clientFilter, setClientFilter] = useState<string>('All organisations');
   const [locationFilter, setLocationFilter] = useState<string>('All locations');
   const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
   const [modelFilter, setModelFilter] = useState<string>('All');
@@ -88,10 +88,11 @@ export const MachinesPage: React.FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    const targetSerial = searchParams.get('serial') || searchParams.get('search');
+    const targetSerial = searchParams.get('select') || searchParams.get('serial') || searchParams.get('search') || searchParams.get('id');
     if (targetSerial && machines.length > 0) {
       const found = machines.find(
         (m) =>
+          (m.id && m.id.toLowerCase() === targetSerial.toLowerCase()) ||
           (m.serial_number && m.serial_number.toLowerCase() === targetSerial.toLowerCase()) ||
           (m.machine_code && m.machine_code.toLowerCase() === targetSerial.toLowerCase())
       );
@@ -189,7 +190,7 @@ export const MachinesPage: React.FC = () => {
 
       // 3. Client Filter
       const matchesClient =
-        clientFilter === 'All clients' ||
+        clientFilter === 'All organisations' ||
         (machine.company_name &&
           machine.company_name.toLowerCase() === clientFilter.toLowerCase()) ||
         machine.organization_id === clientFilter;
@@ -262,7 +263,7 @@ export const MachinesPage: React.FC = () => {
           </h1>
           <p className="text-xs text-[#888888] mt-0.5">
             {isOem
-              ? 'Every Foodie machine across all clients.'
+              ? 'Every Foodie machine across all organisations.'
               : `Commercial composter units assigned to ${user?.company_name || 'your facility'}.`}
           </p>
         </div>
@@ -341,7 +342,7 @@ export const MachinesPage: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search serial number, client or model"
+              placeholder="Search serial number, organisation or model"
               className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[#171717] placeholder-[#9CA3AF] text-xs focus:outline-none focus:border-[#171717] focus:bg-white transition-all"
             />
             {searchQuery && (
@@ -379,7 +380,7 @@ export const MachinesPage: React.FC = () => {
             {/* Client Dropdown (OEM only) */}
             {isOem && (
               <div className="flex items-center gap-1.5">
-                <span className="text-[#6B7280] font-medium text-[11px]">Client</span>
+                <span className="text-[#6B7280] font-medium text-[11px]">Organisation</span>
                 <select
                   value={clientFilter}
                   onChange={(e) => {
@@ -388,7 +389,7 @@ export const MachinesPage: React.FC = () => {
                   }}
                   className="px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[#171717] font-semibold text-xs cursor-pointer focus:outline-none focus:border-[#171717] max-w-[180px] truncate"
                 >
-                  <option value="All clients">All clients</option>
+                  <option value="All organisations">All organisations</option>
                   {organizations.map((org) => (
                     <option key={org.id} value={org.company_name}>
                       {org.company_name}
@@ -462,7 +463,7 @@ export const MachinesPage: React.FC = () => {
 
             {(searchQuery ||
               statusFilter !== 'All' ||
-              clientFilter !== 'All clients' ||
+              clientFilter !== 'All organisations' ||
               locationFilter !== 'All locations' ||
               modelFilter !== 'All') && (
               <button
@@ -470,7 +471,7 @@ export const MachinesPage: React.FC = () => {
                 onClick={() => {
                   setSearchQuery('');
                   setStatusFilter('All');
-                  setClientFilter('All clients');
+                  setClientFilter('All organisations');
                   setLocationFilter('All locations');
                   setModelFilter('All');
                   setCurrentPage(1);
@@ -492,7 +493,7 @@ export const MachinesPage: React.FC = () => {
               <tr className="border-b border-[#E5E7EB] bg-[#F9FAFB] text-[11px] font-bold text-[#6B7280]">
                 <th className="py-3 px-4 font-semibold">Serial Number</th>
                 <th className="py-3 px-4 font-semibold">Model</th>
-                <th className="py-3 px-4 font-semibold">Client</th>
+                <th className="py-3 px-4 font-semibold">Organisation</th>
                 <th className="py-3 px-4 font-semibold">Location</th>
                 <th className="py-3 px-4 font-semibold">Lease start date</th>
                 <th className="py-3 px-4 font-semibold">Connectivity</th>
@@ -516,7 +517,7 @@ export const MachinesPage: React.FC = () => {
                     <Cpu className="w-8 h-8 text-[#CBD5E1] mx-auto mb-2" />
                     <p className="font-bold text-[#171717]">No machines match current filters</p>
                     <p className="text-xs text-[#888888] mt-1">
-                      Try clearing search or adjusting your status, client, or location dropdowns.
+                      Try clearing search or adjusting your status, organisation, or location dropdowns.
                     </p>
                   </td>
                 </tr>

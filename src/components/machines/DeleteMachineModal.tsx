@@ -51,7 +51,7 @@ export const DeleteMachineModal: React.FC<DeleteMachineModalProps> = ({
 
           {isAssigned && (
             <div className="mt-3.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-              This machine is currently assigned to a client. Only unassigned available machines can be removed from fleet inventory.
+              This machine is currently assigned to an organisation. Only unassigned available machines can be removed from fleet inventory.
             </div>
           )}
 

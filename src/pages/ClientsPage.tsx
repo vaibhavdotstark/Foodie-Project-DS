@@ -83,14 +83,14 @@ export const ClientsPage: React.FC = () => {
       setMachines(machineList);
       setUsers(userList);
 
-      if (selectedClientIdFromUrl && orgList.length > 0) {
+      setSelectedClient((prev) => {
+        const idToMatch = selectedClientIdFromUrl || prev?.id;
+        if (!idToMatch) return null;
         const found = orgList.find(
-          (o) => o.id === selectedClientIdFromUrl || o.client_code === selectedClientIdFromUrl
+          (o) => o.id === idToMatch || o.client_code === idToMatch || o.organisation_code === idToMatch
         );
-        if (found) setSelectedClient(found);
-      } else if (!selectedClientIdFromUrl) {
-        setSelectedClient(null);
-      }
+        return found || prev || null;
+      });
     } catch (err) {
       console.error('Failed to load clients data:', err);
     } finally {
@@ -103,11 +103,13 @@ export const ClientsPage: React.FC = () => {
   }, [selectedClientIdFromUrl]);
 
   useEffect(() => {
-    if (!selectedClientIdFromUrl) {
-      setSelectedClient(null);
-      setEditingClient(null);
+    if (selectedClientIdFromUrl && organizations.length > 0) {
+      const found = organizations.find(
+        (o) => o.id === selectedClientIdFromUrl || o.client_code === selectedClientIdFromUrl || o.organisation_code === selectedClientIdFromUrl
+      );
+      if (found) setSelectedClient(found);
     }
-  }, [selectedClientIdFromUrl]);
+  }, [selectedClientIdFromUrl, organizations]);
 
   useEffect(() => {
     const handleReset = () => {
@@ -118,8 +120,12 @@ export const ClientsPage: React.FC = () => {
       setIsInviteUsersOpen(false);
       setSearchParams({});
     };
+    window.addEventListener('reset-organisations-view', handleReset);
     window.addEventListener('reset-clients-view', handleReset);
-    return () => window.removeEventListener('reset-clients-view', handleReset);
+    return () => {
+      window.removeEventListener('reset-organisations-view', handleReset);
+      window.removeEventListener('reset-clients-view', handleReset);
+    };
   }, [setSearchParams]);
 
   useEffect(() => {
@@ -235,7 +241,7 @@ export const ClientsPage: React.FC = () => {
   const handleExportData = (exportItems: Organization[]) => {
     if (exportItems.length === 0) return;
     const headers = [
-      'Client ID',
+      'Organisation ID',
       'Company Name',
       'Business Type',
       'Contact POC',
@@ -246,7 +252,7 @@ export const ClientsPage: React.FC = () => {
       'Onboarding Date',
     ];
     const rows = exportItems.map((c) => [
-      c.client_code,
+      (c.organisation_code || c.client_code),
       `"${c.company_name.replace(/"/g, '""')}"`,
       c.business_type || 'Corporate',
       c.contact_poc || '',
@@ -263,7 +269,7 @@ export const ClientsPage: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `powertech_clients_export_${Date.now()}.csv`);
+    link.setAttribute('download', `powertech_organisations_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -291,8 +297,8 @@ export const ClientsPage: React.FC = () => {
     setSelectedIds([]);
     setToast({
       message: targetActive
-        ? `Successfully activated ${successCount} client${successCount > 1 ? 's' : ''}!`
-        : `Successfully archived ${successCount} client${successCount > 1 ? 's' : ''} (set to inactive).`,
+        ? `Successfully activated ${successCount} organisation${successCount > 1 ? 's' : ''}!`
+        : `Successfully archived ${successCount} organisation${successCount > 1 ? 's' : ''} (set to inactive).`,
       type: targetActive ? 'success' : 'info',
     });
   };
@@ -302,7 +308,7 @@ export const ClientsPage: React.FC = () => {
       await machinesApi.unassign(machineId);
       await fetchData();
       setToast({
-        message: 'Machine successfully unassigned from client and returned to available fleet.',
+        message: 'Machine successfully unassigned from organisation and returned to available fleet.',
         type: 'success',
       });
     } catch (err: any) {
@@ -328,14 +334,14 @@ export const ClientsPage: React.FC = () => {
       );
       setToast({
         message: updated.is_active
-          ? `Client ${updated.company_name} activated successfully!`
-          : `Client ${updated.company_name} archived (set to inactive).`,
+          ? `Organisation ${updated.company_name} activated successfully!`
+          : `Organisation ${updated.company_name} archived (set to inactive).`,
         type: updated.is_active ? 'success' : 'info',
       });
     } catch (err) {
       console.error('Failed to toggle client status:', err);
       setToast({
-        message: 'Failed to update client status.',
+        message: 'Failed to update organisation status.',
         type: 'error',
       });
     }
@@ -359,6 +365,27 @@ export const ClientsPage: React.FC = () => {
           onUnassignMachine={handleUnassignMachine}
           onDeleteClient={() => setDeletingClient(selectedClient)}
           onToggleStatus={handleToggleSelectedClientStatus}
+          onUserAdded={(newUser, roleLabel) => {
+            fetchData();
+            setToast({
+              message: `${roleLabel} "${newUser.first_name} ${newUser.last_name}" added successfully!`,
+              type: 'success',
+            });
+          }}
+          onUserUpdated={(updatedUser, roleLabel) => {
+            fetchData();
+            setToast({
+              message: `${roleLabel} "${updatedUser.first_name} ${updatedUser.last_name}" updated successfully!`,
+              type: 'success',
+            });
+          }}
+          onUserDeleted={(_id, roleLabel) => {
+            fetchData();
+            setToast({
+              message: `${roleLabel} deleted successfully.`,
+              type: 'info',
+            });
+          }}
         />
 
         <InviteUsersDrawer
@@ -386,7 +413,7 @@ export const ClientsPage: React.FC = () => {
             );
             setSelectedClient(updatedOrg);
             setToast({
-              message: `Client ${updatedOrg.company_name} updated successfully!`,
+              message: `Organisation ${updatedOrg.company_name} updated successfully!`,
               type: 'success',
             });
           }}
@@ -400,7 +427,7 @@ export const ClientsPage: React.FC = () => {
           onSuccess={() => {
             fetchData();
             setToast({
-              message: 'Machine(s) assigned to client successfully!',
+              message: 'Machine(s) assigned to organisation successfully!',
               type: 'success',
             });
           }}
@@ -417,7 +444,7 @@ export const ClientsPage: React.FC = () => {
             setSearchParams({});
             fetchData();
             setToast({
-              message: 'Client record archived and assigned machines unassigned successfully.',
+              message: 'Organisation record archived and assigned machines unassigned successfully.',
               type: 'info',
             });
           }}
@@ -441,20 +468,20 @@ export const ClientsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-[#171717] tracking-tight">
-              Clients
+              Organisations
             </h1>
             <button
               type="button"
               onClick={fetchData}
               disabled={isLoading}
-              title="Refresh clients list from PostgreSQL"
+              title="Refresh organisations list from PostgreSQL"
               className="p-1 rounded-lg text-[#888888] hover:text-[#171717] hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#E32032]' : ''}`} />
             </button>
           </div>
           <p className="text-xs text-[#666666] mt-0.5">
-            Every client account and the Foodie machines assigned to it.
+            Every organisation account and the Foodie machines assigned to it.
           </p>
         </div>
 
@@ -464,7 +491,7 @@ export const ClientsPage: React.FC = () => {
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold bg-[#E32032] hover:bg-[#C1121F] text-white transition-all cursor-pointer shadow-2xs self-start sm:self-auto"
         >
           <Plus className="w-4 h-4 text-white" />
-          <span>Add client</span>
+          <span>Add new organisation</span>
         </button>
       </div>
 
@@ -480,7 +507,7 @@ export const ClientsPage: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search client ID, company or contact"
+              placeholder="Search organisation ID, company or contact"
               className="w-full bg-[#F8F9FA] border border-[#E3E4E6] rounded-xl pl-9 pr-3.5 py-2 text-xs text-[#171717] focus:outline-none focus:border-[#171717] focus:bg-white transition-colors"
             />
             {searchQuery && (
@@ -581,8 +608,8 @@ export const ClientsPage: React.FC = () => {
                 </span>
                 <span className="font-bold text-[#171717]">
                   {selectedIds.length === 1
-                    ? `1 client selected · ${selectedClients[0]?.company_name || 'Client'}`
-                    : `${selectedIds.length} clients selected`}
+                    ? `1 organisation selected · ${selectedClients[0]?.company_name || 'Organisation'}`
+                    : `${selectedIds.length} organisations selected`}
                 </span>
                 <button
                   type="button"
@@ -676,7 +703,7 @@ export const ClientsPage: React.FC = () => {
                     className="w-4 h-4 rounded border-[#D1D5DB] text-[#E32032] focus:ring-[#E32032] cursor-pointer accent-[#E32032]"
                   />
                 </th>
-                <th className="py-3 px-3 whitespace-nowrap min-w-[100px]">Client ID</th>
+                <th className="py-3 px-3 whitespace-nowrap min-w-[100px]">Organisation code</th>
                 <th className="py-3 px-3">Company name</th>
                 <th className="py-3 px-3 whitespace-nowrap">Business type</th>
                 <th className="py-3 px-3 whitespace-nowrap">Point of contact</th>
@@ -692,7 +719,7 @@ export const ClientsPage: React.FC = () => {
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-[#666666]">
                     <Building2 className="w-8 h-8 text-[#CBD5E1] mx-auto mb-2" />
-                    <p className="font-bold text-[#171717]">No clients match the current filters</p>
+                    <p className="font-bold text-[#171717]">No organisations match the current filters</p>
                     <p className="text-xs text-[#888888] mt-1">
                       Try clearing search or adjusting your status/location dropdowns.
                     </p>
@@ -727,10 +754,13 @@ export const ClientsPage: React.FC = () => {
                       <td className="py-3.5 px-3 whitespace-nowrap min-w-[100px]">
                         <button
                           type="button"
-                          onClick={() => setSelectedClient(client)}
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setSearchParams({ select: client.id });
+                          }}
                           className="font-bold text-[#E32032] underline hover:text-[#C1121F] cursor-pointer text-left whitespace-nowrap font-mono inline-block break-keep"
                         >
-                          {client.client_code}
+                          {client.organisation_code || client.client_code}
                         </button>
                       </td>
 
@@ -803,11 +833,12 @@ export const ClientsPage: React.FC = () => {
                               onClick={() => {
                                 setActiveMenuId(null);
                                 setSelectedClient(client);
+                                setSearchParams({ select: client.id });
                               }}
                               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5 text-[#6B7280]" />
-                              <span>View client</span>
+                              <span>View organisation</span>
                             </button>
 
                             <button
@@ -819,7 +850,7 @@ export const ClientsPage: React.FC = () => {
                               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                             >
                               <Edit2 className="w-3.5 h-3.5 text-[#6B7280]" />
-                              <span>Edit client</span>
+                              <span>Edit organisation</span>
                             </button>
 
                             <button
@@ -862,14 +893,14 @@ export const ClientsPage: React.FC = () => {
                                       await fetchData();
                                       setToast({
                                         message: isCurrentlyActive
-                                          ? `Client ${client.company_name} archived (set to inactive).`
-                                          : `Client ${client.company_name} activated successfully!`,
+                                          ? `Organisation ${client.company_name} archived (set to inactive).`
+                                          : `Organisation ${client.company_name} activated successfully!`,
                                         type: isCurrentlyActive ? 'info' : 'success',
                                       });
                                     } catch (err) {
                                       console.error('Failed to toggle client status:', err);
                                       setToast({
-                                        message: 'Failed to update client status.',
+                                        message: 'Failed to update organisation status.',
                                         type: 'error',
                                       });
                                     }
@@ -903,7 +934,7 @@ export const ClientsPage: React.FC = () => {
                               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#E32032] hover:bg-red-50 transition-colors cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5 text-[#E32032]" />
-                              <span>Delete client</span>
+                              <span>Delete organisation</span>
                             </button>
                           </div>
                         )}
@@ -951,7 +982,7 @@ export const ClientsPage: React.FC = () => {
           </div>
 
           <div>
-            Showing {totalItems > 0 ? startIndex + 1 : 0}–{endIndex} of {totalItems} clients
+            Showing {totalItems > 0 ? startIndex + 1 : 0}–{endIndex} of {totalItems} organisations
           </div>
 
           <div className="flex items-center gap-1">
@@ -1027,7 +1058,7 @@ export const ClientsPage: React.FC = () => {
         onSuccess={(newOrg) => {
           fetchData();
           setToast({
-            message: `Client ${newOrg.company_name} (${newOrg.client_code}) added successfully!`,
+            message: `Organisation ${newOrg.company_name} (${newOrg.organisation_code || newOrg.client_code}) added successfully!`,
             type: 'success',
           });
         }}
@@ -1042,7 +1073,7 @@ export const ClientsPage: React.FC = () => {
             prev.map((o) => (o.id === updatedOrg.id ? updatedOrg : o))
           );
           setToast({
-            message: `Client ${updatedOrg.company_name} updated successfully!`,
+            message: `Organisation ${updatedOrg.company_name} updated successfully!`,
             type: 'success',
           });
         }}
@@ -1061,7 +1092,7 @@ export const ClientsPage: React.FC = () => {
           setSelectedIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
           fetchData();
           setToast({
-            message: `Client record archived and assigned machines unassigned successfully.`,
+            message: `Organisation record archived and assigned machines unassigned successfully.`,
             type: 'info',
           });
         }}

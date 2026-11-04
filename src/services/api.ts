@@ -51,10 +51,22 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
-    const errorMsg =
-      data?.detail ||
-      data?.error ||
-      (typeof data === 'string' ? data : `Request failed with status ${response.status}`);
+    let errorMsg = 'An error occurred';
+    if (data?.detail) {
+      if (typeof data.detail === 'string') {
+        errorMsg = data.detail;
+      } else if (Array.isArray(data.detail)) {
+        errorMsg = data.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ');
+      } else {
+        errorMsg = JSON.stringify(data.detail);
+      }
+    } else if (data?.error) {
+      errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+    } else if (typeof data === 'string') {
+      errorMsg = data;
+    } else {
+      errorMsg = `Request failed with status ${response.status}`;
+    }
     throw new Error(errorMsg);
   }
 
@@ -97,8 +109,14 @@ export const authApi = {
     });
   },
 
-  logout: () => {
-    tokenStorage.clear();
+  logout: async (): Promise<void> => {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      tokenStorage.clear();
+    }
   },
 };
 
@@ -195,19 +213,65 @@ export const orgsApi = {
   },
 };
 
+export interface SearchResultOrganization {
+  id: string;
+  organisation_code?: string;
+  client_code?: string;
+  company_name: string;
+  business_type?: string;
+  status?: string;
+  email?: string;
+}
+
+export interface SearchResultSite {
+  id: string;
+  site_code: string;
+  site_name: string;
+  address: string;
+  timezone?: string;
+  is_active: boolean;
+}
+
+export interface SearchResultUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  phone_number?: string;
+  location?: string;
+}
+
+export interface SearchResultMachine {
+  id: string;
+  machine_code?: string;
+  serial_number?: string;
+  model: string;
+  location: string;
+  status: string;
+  temp: string;
+}
+
 export interface SearchResults {
-  sites: { id: string; site_code: string; site_name: string; address: string; is_active: boolean }[];
-  users: { id: string; first_name: string; last_name: string; email: string; role: string }[];
-  machines: { id: string; model: string; location: string; status: string; temp: string }[];
+  organizations: SearchResultOrganization[];
+  sites: SearchResultSite[];
+  users: SearchResultUser[];
+  machines: SearchResultMachine[];
 }
 
 // Search
 export const searchApi = {
   query: async (q: string): Promise<SearchResults> => {
     if (!q.trim()) {
-      return { sites: [], users: [], machines: [] };
+      return { organizations: [], sites: [], users: [], machines: [] };
     }
-    return await request<SearchResults>(`/search?q=${encodeURIComponent(q.trim())}`);
+    const res = await request<SearchResults>(`/search?q=${encodeURIComponent(q.trim())}`);
+    return {
+      organizations: res?.organizations || [],
+      sites: res?.sites || [],
+      users: res?.users || [],
+      machines: res?.machines || [],
+    };
   },
 };
 

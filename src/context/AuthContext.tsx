@@ -38,11 +38,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // Strict 15-minute inactivity session expiration
+  const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+  const lastActivityRef = React.useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (!token || !user) return;
+
+    const recordActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    events.forEach((ev) => window.addEventListener(ev, recordActivity, { passive: true }));
+
+    const intervalId = setInterval(() => {
+      const inactiveDuration = Date.now() - lastActivityRef.current;
+      if (inactiveDuration >= INACTIVITY_TIMEOUT_MS) {
+        sessionStorage.setItem('foodie_session_expired', 'true');
+        if (user?.email) {
+          sessionStorage.setItem('foodie_expired_email', user.email);
+        }
+        logout();
+        window.location.href = '/login?view=expired';
+      }
+    }, 15000); // Check every 15 seconds
+
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, recordActivity));
+      clearInterval(intervalId);
+    };
+  }, [token, user]);
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const res = await authApi.login(email, password);
       setUser(res.user);
       setToken(res.token);
+      lastActivityRef.current = Date.now();
       return true;
     } catch (err: any) {
       console.error('Login error:', err.message);

@@ -77,11 +77,13 @@ def login(payload: LoginRequest):
         # Fetch client organization details if user is linked to a client
         user_dict["company_name"] = None
         user_dict["client_code"] = None
+        user_dict["organisation_code"] = None
         if user_dict.get("organization_id"):
-            cur.execute("SELECT company_name, client_code FROM organizations WHERE id = %s;", (user_dict["organization_id"],))
+            cur.execute("SELECT company_name, organisation_code FROM organizations WHERE id = %s;", (user_dict["organization_id"],))
             org_row = cur.fetchone()
             if org_row:
                 user_dict["company_name"] = org_row[0]
+                user_dict["organisation_code"] = org_row[1]
                 user_dict["client_code"] = org_row[1]
 
         # Generate JWT token
@@ -94,7 +96,9 @@ def login(payload: LoginRequest):
             "organization_id": str(user_dict["organization_id"]) if user_dict.get("organization_id") else None,
             "company_name": user_dict.get("company_name"),
             "client_code": user_dict.get("client_code"),
+            "organisation_code": user_dict.get("organisation_code"),
             "assigned_site_id": None,
+            "token_version": user_dict.get("token_version", 1),
         }
         token = create_access_token(token_data)
 
@@ -112,13 +116,15 @@ def get_me(current_user: dict = Depends(get_current_user)):
     user_dict["id"] = str(user_dict["id"])
     user_dict["company_name"] = None
     user_dict["client_code"] = None
+    user_dict["organisation_code"] = None
     if user_dict.get("organization_id"):
         user_dict["organization_id"] = str(user_dict["organization_id"])
         with get_db_cursor() as cur:
-            cur.execute("SELECT company_name, client_code FROM organizations WHERE id = %s;", (user_dict["organization_id"],))
+            cur.execute("SELECT company_name, organisation_code FROM organizations WHERE id = %s;", (user_dict["organization_id"],))
             org_row = cur.fetchone()
             if org_row:
                 user_dict["company_name"] = org_row[0]
+                user_dict["organisation_code"] = org_row[1]
                 user_dict["client_code"] = org_row[1]
     return UserResponse(**user_dict)
 
@@ -235,7 +241,7 @@ def reset_password(payload: ResetPasswordRequest):
         # Clear reset token, update password and reset failed login attempts
         cur.execute("""
             UPDATE users 
-            SET password_hash = %s, reset_token = NULL, reset_token_expires_at = NULL, updated_at = CURRENT_TIMESTAMP
+            SET password_hash = %s, reset_token = NULL, reset_token_expires_at = NULL, token_version = COALESCE(token_version, 1) + 1, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s;
         """, (new_hash, user_id))
 
@@ -244,3 +250,11 @@ def reset_password(payload: ResetPasswordRequest):
         return {"success": True, "message": "Password has been updated successfully."}
 
 
+
+@router.post("/logout")
+def logout(current_user: dict = Depends(get_current_user)):
+    """Terminates session server-side by incrementing token_version so existing JWT cannot be reused."""
+    user_id = current_user.get("id")
+    with get_db_cursor(commit=True) as cur:
+        cur.execute("UPDATE users SET token_version = COALESCE(token_version, 1) + 1 WHERE id = %s;", (user_id,))
+    return {"success": True, "message": "Logged out successfully. Session token invalidated."}

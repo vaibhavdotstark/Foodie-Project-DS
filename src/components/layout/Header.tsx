@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { FoodieLogo } from '../common/FoodieLogo';
 import { searchApi } from '../../services/api';
-import type { SearchResults } from '../../services/api';
+import type { SearchResults, SearchResultOrganization, SearchResultMachine, SearchResultUser, SearchResultSite } from '../../services/api';
 import type { UserRole } from '../../types';
 
 export const Header: React.FC = () => {
@@ -88,9 +88,51 @@ export const Header: React.FC = () => {
   }, []);
 
   const totalResultsCount =
-    (results?.sites.length || 0) +
-    (results?.users.length || 0) +
-    (results?.machines.length || 0);
+    (results?.organizations?.length || 0) +
+    (results?.sites?.length || 0) +
+    (results?.users?.length || 0) +
+    (results?.machines?.length || 0);
+
+  const handleSelectOrganization = (org: SearchResultOrganization) => {
+    setIsOpen(false);
+    setSearchQuery('');
+    if (user?.role === 'OEM_MANAGER') {
+      navigate(`/organisations?select=${encodeURIComponent(org.id)}`);
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleSelectMachine = (m: SearchResultMachine) => {
+    setIsOpen(false);
+    setSearchQuery('');
+    const machineTarget = m.id || m.machine_code || '';
+    if (user?.role === 'OPERATOR') {
+      navigate(`/?select=${encodeURIComponent(machineTarget)}`);
+    } else {
+      navigate(`/machines?select=${encodeURIComponent(machineTarget)}`);
+    }
+  };
+
+  const handleSelectUser = (u: SearchResultUser) => {
+    setIsOpen(false);
+    setSearchQuery('');
+    if (user?.role === 'OEM_MANAGER' || user?.role === 'SITE_ADMIN' || user?.role === 'ORGANISATION_OWNER') {
+      navigate(`/users?select=${encodeURIComponent(u.id)}`);
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleSelectSite = (_site?: SearchResultSite) => {
+    setIsOpen(false);
+    setSearchQuery('');
+    if (user?.role === 'OEM_MANAGER') {
+      navigate('/organisations');
+    } else {
+      navigate('/');
+    }
+  };
 
   const handleSelectResult = (path: string) => {
     setIsOpen(false);
@@ -111,12 +153,12 @@ export const Header: React.FC = () => {
           <div className="h-6 w-px bg-[#E3E4E6] hidden lg:block" />
           <div className="hidden lg:flex flex-col">
             <span className="text-[10px] text-[#888888] font-bold uppercase leading-tight">
-              {user?.role === 'OEM_MANAGER' ? 'Workspace' : 'Client Workspace'}
+              {user?.role === 'OEM_MANAGER' ? 'Workspace' : 'Organisation Workspace'}
             </span>
             <span className="text-xs font-extrabold text-[#171717] leading-tight truncate max-w-[240px]">
               {user?.role === 'OEM_MANAGER'
                 ? 'OEM Asset Manager'
-                : (user?.company_name || 'Client Workspace')}
+                : (user?.company_name || 'Organisation Workspace')}
             </span>
           </div>
         </div>
@@ -142,7 +184,7 @@ export const Header: React.FC = () => {
             onFocus={() => {
               if (searchQuery.trim().length > 0) setIsOpen(true);
             }}
-            placeholder="Search"
+            placeholder="Search organisations, machines, users..."
             className="bg-[#F8F9FA] border border-[#E3E4E6] rounded-lg pl-9 pr-8 py-1.5 text-xs text-[#171717] focus:outline-none focus:border-[#171717] focus:bg-white transition-all w-full placeholder-[#888888]"
           />
             {searchQuery && (
@@ -168,8 +210,60 @@ export const Header: React.FC = () => {
                 <div className="p-5 text-center">
                   <p className="text-xs font-semibold text-[#171717]">No records matching "{searchQuery}"</p>
                   <p className="text-[11px] text-[#666666] mt-1">
-                    Try searching by Site Code (e.g. SITE-A), user email, or machine ID.
+                    Try searching by Organisation ID (e.g. ORG-0003), machine ID, user email, or site code.
                   </p>
+                </div>
+              )}
+
+              {results && results.organizations && results.organizations.length > 0 && (
+                <div className="py-2">
+                  <div className="px-3 py-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#666666]">
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-3 h-3 text-[#E32032]" />
+                      Organisations ({results.organizations.length})
+                    </span>
+                    {user?.role === 'OEM_MANAGER' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOpen(false);
+                          navigate('/organisations');
+                        }}
+                        className="text-[#E32032] hover:underline normal-case font-semibold text-[11px]"
+                      >
+                        View all
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-1">
+                    {results.organizations.map((org) => (
+                      <div
+                        key={org.id}
+                        onClick={() => handleSelectOrganization(org)}
+                        className="px-3 py-2 hover:bg-[#F8F9FA] cursor-pointer flex items-center justify-between transition-colors group"
+                      >
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[#171717] group-hover:text-[#E32032] transition-colors truncate">
+                              {org.company_name}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-[#E32032] shrink-0">
+                              {org.organisation_code || org.client_code}
+                            </span>
+                            {org.status && (
+                              <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                {org.status}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-[#666666] truncate mt-0.5">
+                            {org.business_type || 'Corporate'} {org.email ? `• ${org.email}` : ''}
+                          </span>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-[#CCCCCC] group-hover:text-[#171717] shrink-0" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -182,7 +276,7 @@ export const Header: React.FC = () => {
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleSelectResult('/sites')}
+                      onClick={() => handleSelectResult('/organisations')}
                       className="text-[#E32032] hover:underline normal-case font-semibold text-[11px]"
                     >
                       View all
@@ -192,7 +286,7 @@ export const Header: React.FC = () => {
                     {results.sites.map((site) => (
                       <div
                         key={site.id}
-                        onClick={() => handleSelectResult('/sites')}
+                        onClick={() => handleSelectSite(site)}
                         className="px-3 py-2 hover:bg-[#F8F9FA] cursor-pointer flex items-center justify-between transition-colors group"
                       >
                         <div className="flex flex-col min-w-0 pr-2">
@@ -241,7 +335,7 @@ export const Header: React.FC = () => {
                       {filteredUsers.map((u) => (
                         <div
                           key={u.id}
-                          onClick={() => handleSelectResult('/users')}
+                          onClick={() => handleSelectUser(u)}
                           className="px-3 py-2 hover:bg-[#F8F9FA] cursor-pointer flex items-center justify-between transition-colors group"
                         >
                           <div className="flex flex-col min-w-0 pr-2">
@@ -265,7 +359,7 @@ export const Header: React.FC = () => {
                 );
               })()}
 
-              {results && results.machines.length > 0 && (
+              {results && results.machines && results.machines.length > 0 && (
                 <div className="py-2">
                   <div className="px-3 py-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#666666]">
                     <span className="flex items-center gap-1.5">
@@ -274,30 +368,37 @@ export const Header: React.FC = () => {
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleSelectResult('/')}
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate(user?.role === 'OPERATOR' ? '/' : '/machines');
+                      }}
                       className="text-[#171717] hover:underline normal-case font-semibold text-[11px]"
                     >
-                      Telemetry
+                      {user?.role === 'OPERATOR' ? 'Dashboard' : 'All machines'}
                     </button>
                   </div>
                   <div className="mt-1">
                     {results.machines.map((m) => (
                       <div
                         key={m.id}
-                        onClick={() => handleSelectResult('/')}
+                        onClick={() => handleSelectMachine(m)}
                         className="px-3 py-2 hover:bg-[#F8F9FA] cursor-pointer flex items-center justify-between transition-colors group"
                       >
                         <div className="flex flex-col min-w-0 pr-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-[#171717] group-hover:text-[#E32032] transition-colors">
-                              {m.id} — {m.model}
+                            <span className="text-xs font-bold text-[#171717] group-hover:text-[#E32032] transition-colors truncate">
+                              {m.machine_code || m.id} — {m.model}
                             </span>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {m.status} ({m.temp})
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                              m.status === 'Online'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}>
+                              {m.status} {m.temp ? `(${m.temp})` : ''}
                             </span>
                           </div>
                           <span className="text-[11px] text-[#666666] truncate mt-0.5">
-                            {m.location}
+                            {m.location} {m.serial_number ? `• SN: ${m.serial_number}` : ''}
                           </span>
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-[#CCCCCC] group-hover:text-[#171717] shrink-0" />
@@ -351,7 +452,7 @@ export const Header: React.FC = () => {
                 OPERATOR: 'Operator',
               };
               const displayRole = user ? roleTitleMap[user.role] : 'Operator';
-              const displayCompany = user?.role === 'OEM_MANAGER' ? 'PowerTech Energy' : (user?.company_name || 'Client Workspace');
+              const displayCompany = user?.role === 'OEM_MANAGER' ? 'PowerTech Energy' : (user?.company_name || 'Organisation Workspace');
               const displayRoleCompany = `${displayRole} · ${displayCompany}`;
 
               return (

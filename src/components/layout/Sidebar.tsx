@@ -19,7 +19,7 @@ export const Sidebar: React.FC = () => {
   // OEM Manager also gets Clients view to manage fleet clients
   const navItems = [
     { to: '/', label: 'Home', icon: Home, end: true },
-    ...(userRole === 'OEM_MANAGER' ? [{ to: '/clients', label: 'Clients', icon: Users }] : []),
+    ...(userRole === 'OEM_MANAGER' ? [{ to: '/organisations', label: 'Organisations', icon: Users }] : []),
     { to: '/machines', label: 'Machines', icon: LayoutGrid },
     { to: '/sustainability', label: 'Sustainability', icon: Leaf, badge: 'P2' },
     { to: '/reports', label: 'Reports', icon: FileText },
@@ -39,7 +39,8 @@ export const Sidebar: React.FC = () => {
               to={item.to}
               end={item.to === '/'}
               onClick={() => {
-                if (item.to === '/clients') {
+                if (item.to === '/organisations' || item.to === '/clients') {
+                  window.dispatchEvent(new CustomEvent('reset-organisations-view'));
                   window.dispatchEvent(new CustomEvent('reset-clients-view'));
                 }
               }}
