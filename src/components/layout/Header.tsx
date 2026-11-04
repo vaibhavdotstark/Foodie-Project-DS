@@ -324,14 +324,12 @@ export const Header: React.FC = () => {
         {/* Right Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
           {/* FAQ Pill Button */}
-          <button
-            type="button"
-            onClick={() => setIsFaqOpen(true)}
-            className="px-2.5 sm:px-3.5 py-1.5 rounded-full border border-[#D1D5DB] bg-white text-[#171717] hover:bg-[#F9FAFB] transition-all flex items-center gap-1.5 text-xs font-bold shadow-2xs cursor-pointer shrink-0"
+          <div
+            className="px-2.5 sm:px-3.5 py-1.5 rounded-full border border-[#D1D5DB] bg-white text-[#171717] flex items-center gap-1.5 text-xs font-bold shadow-2xs cursor-default select-none shrink-0"
           >
             <span>FAQ</span>
             <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#171717] shrink-0" />
-          </button>
+          </div>
 
           {/* Notifications Alert Bell with red 2 badge */}
           <button
@@ -435,17 +433,12 @@ export const Header: React.FC = () => {
                           <span>Settings</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            setIsFaqOpen(true);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer text-left"
+                        <div
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-[#171717] cursor-default select-none text-left"
                         >
                           <HelpCircle className="w-4 h-4 text-[#171717]" />
                           <span>FAQ</span>
-                        </button>
+                        </div>
                       </div>
 
                       <div className="border-t border-[#E5E7EB] my-2" />
