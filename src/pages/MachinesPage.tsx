@@ -419,14 +419,12 @@ export const MachinesPage: React.FC = () => {
             </div>
 
             {/* More filters Button */}
-            <button
-              type="button"
-              disabled
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF] text-xs font-semibold opacity-60 cursor-not-allowed select-none"
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E5E7EB] bg-white text-[#171717] text-xs font-semibold shadow-2xs cursor-default select-none"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#9CA3AF]" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#171717]" />
               <span>More filters</span>
-            </button>
+            </div>
           </div>
         </div>
 

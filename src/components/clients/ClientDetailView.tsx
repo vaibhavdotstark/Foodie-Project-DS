@@ -543,10 +543,11 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
               <button
                 type="button"
-                onClick={onAssignMachine}
-                disabled
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] opacity-50 cursor-not-allowed text-white flex items-center gap-1.5 shadow-2xs self-start sm:self-auto"
-                title="Machine assignment will be enabled in Sprint 2"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (false && onAssignMachine) onAssignMachine();
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] text-white flex items-center gap-1.5 shadow-2xs self-start sm:self-auto cursor-default select-none"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Assign machine</span>

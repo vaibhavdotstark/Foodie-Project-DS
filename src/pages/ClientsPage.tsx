@@ -734,14 +734,12 @@ export const ClientsPage: React.FC = () => {
                               <span>Edit client</span>
                             </button>
 
-                            <button
-                              type="button"
-                              disabled
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#9CA3AF] opacity-50 cursor-not-allowed select-none"
+                            <div
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#171717] cursor-default select-none"
                             >
-                              <Cpu className="w-3.5 h-3.5 text-[#9CA3AF]" />
+                              <Cpu className="w-3.5 h-3.5 text-[#6B7280]" />
                               <span>Assign machine</span>
-                            </button>
+                            </div>
 
                             <button
                               type="button"

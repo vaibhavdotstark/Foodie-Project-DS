@@ -430,20 +430,39 @@ export const EditMachineDrawer: React.FC<EditMachineDrawerProps> = ({
                     </div>
                   </div>
 
-                  {/* Has stairs checkbox */}
-                  <div className="pt-1">
-                    <label className="inline-flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="has_stairs"
-                        checked={formData.has_stairs}
-                        onChange={handleChange}
-                        className="w-4 h-4 rounded border-[#D1D5DB] text-[#111827] focus:ring-[#111827] cursor-pointer"
-                      />
-                      <span className="text-xs font-medium text-[#374151]">
-                        Installation location requires stairs access
-                      </span>
+                  {/* Has stairs (optional) */}
+                  <div>
+                    <label className="block text-xs font-medium text-[#374151] mb-1.5">
+                      Has stairs (optional)
                     </label>
+                    <div className="inline-flex rounded-lg border border-[#D1D5DB] p-0.5 bg-[#F9FAFB]">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, has_stairs: true }))
+                        }
+                        className={`px-5 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                          formData.has_stairs
+                            ? 'bg-white text-[#111827] font-semibold shadow-xs border border-[#D1D5DB]'
+                            : 'text-[#6B7280] hover:text-[#111827]'
+                        }`}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, has_stairs: false }))
+                        }
+                        className={`px-5 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                          !formData.has_stairs
+                            ? 'bg-white text-[#111827] font-semibold shadow-xs border border-[#D1D5DB]'
+                            : 'text-[#6B7280] hover:text-[#111827]'
+                        }`}
+                      >
+                        No
+                      </button>
+                    </div>
                   </div>
 
                   {/* Notes */}
