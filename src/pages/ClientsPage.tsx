@@ -736,14 +736,10 @@ export const ClientsPage: React.FC = () => {
 
                             <button
                               type="button"
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                setSelectedClient(client);
-                                setIsAssignMachineOpen(true);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                              disabled
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-[#9CA3AF] opacity-50 cursor-not-allowed select-none"
                             >
-                              <Cpu className="w-3.5 h-3.5 text-[#6B7280]" />
+                              <Cpu className="w-3.5 h-3.5 text-[#9CA3AF]" />
                               <span>Assign machine</span>
                             </button>
 

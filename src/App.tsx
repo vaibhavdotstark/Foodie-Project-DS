@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { MasterLayout } from './components/layout/MasterLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardOverviewPage } from './pages/DashboardOverviewPage';
-import { UserRegistrationPage } from './pages/UserRegistrationPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { MachinesPage } from './pages/MachinesPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { PlaceholderView } from './components/common/PlaceholderView';
@@ -55,10 +55,18 @@ export const AppContent: React.FC = () => {
         <Route index element={<DashboardOverviewPage />} />
         <Route path="sites" element={<Navigate to="/" replace />} />
         <Route
+          path="profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="users"
           element={
-            <ProtectedRoute adminOnly>
-              <UserRegistrationPage />
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

@@ -415,7 +415,7 @@ export const Header: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setIsUserMenuOpen(false);
-                            navigate('/users');
+                            navigate('/profile');
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-[#171717] hover:bg-[#F9FAFB] transition-colors cursor-pointer text-left"
                         >

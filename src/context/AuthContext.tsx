@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   switchRole: (role: UserRole) => void;
+  updateUser: (updatedFields: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUser = (updatedFields: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...updatedFields });
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -69,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         switchRole,
+        updateUser,
       }}
     >
       {children}
