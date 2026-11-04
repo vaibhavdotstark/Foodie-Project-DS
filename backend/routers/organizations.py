@@ -68,7 +68,9 @@ def get_organization(org_id: str):
 
 @router.post("", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 def create_organization(payload: OrganizationCreate, current_user: dict = Depends(get_current_user)):
-    code = payload.client_code.strip().upper()
+    code = (payload.client_code or "").strip().upper()
+    if not code:
+        code = get_next_client_code()["next_code"]
     company = payload.company_name.strip()
     
     # Safe date sanitization
@@ -95,6 +97,18 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
         if cur.fetchone():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Company name '{company}' is already registered.")
 
+        billing_addr = payload.billing_address.strip() if payload.billing_address else None
+        if not billing_addr:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please enter the billing address."
+            )
+
+        raw_shipping = payload.shipping_address.strip() if payload.shipping_address else None
+        shipping_addr = None
+        if raw_shipping and raw_shipping.lower() not in ('same as billing', 'same as billing address'):
+            shipping_addr = raw_shipping
+
         cur.execute("""
             INSERT INTO organizations (
                 client_code, company_name, business_type, status, onboarding_date, tax_id, contact_poc, email, phone_number,
@@ -115,8 +129,8 @@ def create_organization(payload: OrganizationCreate, current_user: dict = Depend
             payload.email.strip() if payload.email else None,
             payload.phone_number.strip() if payload.phone_number else None,
             payload.website.strip() if payload.website else None,
-            payload.billing_address.strip() if payload.billing_address else None,
-            (payload.shipping_address or payload.billing_address or '').strip() or None,
+            billing_addr,
+            shipping_addr,
             payload.payment_terms or '30 days',
             payload.preferred_currency or 'AUD',
             payload.comms_preference or 'Email',
@@ -247,6 +261,14 @@ def update_organization(org_id: str, payload: OrganizationUpdate):
     update_data = payload.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided for update.")
+
+    if 'billing_address' in update_data and (not update_data['billing_address'] or not str(update_data['billing_address']).strip()):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please enter the billing address.")
+
+    if 'shipping_address' in update_data:
+        raw_ship = update_data['shipping_address']
+        if raw_ship and str(raw_ship).strip().lower() in ('same as billing', 'same as billing address'):
+            update_data['shipping_address'] = None
 
     set_clauses = []
     params = []

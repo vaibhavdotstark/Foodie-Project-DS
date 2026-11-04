@@ -474,7 +474,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             <div>
               <span className="block text-xs text-[#6B7280]">Shipping address</span>
               <span className="block text-xs sm:text-sm font-semibold text-[#111827] mt-1">
-                {client.shipping_address || 'Same as billing'}
+                {client.shipping_address || '—'}
               </span>
             </div>
           </div>
@@ -544,7 +544,9 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
               <button
                 type="button"
                 onClick={onAssignMachine}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+                disabled
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] opacity-50 cursor-not-allowed text-white flex items-center gap-1.5 shadow-2xs self-start sm:self-auto"
+                title="Machine assignment will be enabled in Sprint 2"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Assign machine</span>

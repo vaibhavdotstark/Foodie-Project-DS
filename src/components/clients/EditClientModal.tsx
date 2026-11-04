@@ -93,6 +93,10 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
       setError('Primary contact email is required.');
       return;
     }
+    if (!formData.billing_address?.trim()) {
+      setError('Please enter the billing address.');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
