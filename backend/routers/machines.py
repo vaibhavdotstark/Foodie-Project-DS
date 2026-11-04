@@ -304,12 +304,6 @@ def update_machine(machine_id: str, payload: MachineUpdate, current_user: dict =
                     pass
                 else:
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: You can only manage machines at your assigned location.")
-        existing = cur.fetchone()
-        if not existing:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Machine with ID '{machine_id}' not found."
-            )
 
         if payload.serial_number:
             normalized_serial = payload.serial_number.strip().upper()

@@ -259,14 +259,17 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       }));
 
     const trimmedBilling = billingAddress.trim();
+    if (!trimmedBilling) {
+      setError('Please enter the billing address.');
+      setIsSubmitting(false);
+      return;
+    }
+
     const trimmedShipping = shippingAddress.trim();
-    const isSameAsBilling =
-      !trimmedShipping ||
-      trimmedShipping.toLowerCase() === 'same as billing' ||
-      trimmedShipping.toLowerCase() === 'same as billing address';
-    const resolvedShipping = isSameAsBilling
-      ? (trimmedBilling || undefined)
-      : trimmedShipping;
+    const cleanShipping =
+      trimmedShipping && !['same as billing', 'same as billing address'].includes(trimmedShipping.toLowerCase())
+        ? trimmedShipping
+        : undefined;
 
     try {
       const created = await orgsApi.create({
@@ -279,8 +282,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         phone_number: phoneNumber.trim() || undefined,
         email: email.trim(),
         website: website.trim() || undefined,
-        billing_address: billingAddress.trim() || undefined,
-        shipping_address: resolvedShipping,
+        billing_address: trimmedBilling,
+        shipping_address: cleanShipping,
         payment_terms: paymentTerms,
         comms_preference: commsPreference,
         assigned_machines:
@@ -591,7 +594,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                     type="text"
                     value={shippingAddress}
                     onChange={(e) => setShippingAddress(e.target.value)}
-                    placeholder="Same as billing"
+                    placeholder="Street, suburb, state, postcode (Optional)"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#D1D5DB] bg-white text-[#171717] focus:outline-none focus:border-[#171717] text-xs"
                   />
                 </div>

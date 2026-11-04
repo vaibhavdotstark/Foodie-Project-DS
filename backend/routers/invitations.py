@@ -141,18 +141,87 @@ def send_organization_invitations(
             expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
             site_target_id = item.site_id or (user_site_id if user_role == "SITE_MANAGER" else None)
+            target_loc = (item.location or "").strip()
+            target_sm_id = item.site_manager_id
+
+            # Validation for Site Manager
+            if item.role == "SITE_MANAGER":
+                if not target_loc:
+                    errors.append(f"Site location is required when inviting a Site Manager ({clean_email}).")
+                    continue
+                if len(target_loc) < 2 or len(target_loc) > 100:
+                    errors.append(f"Site location for {clean_email} must be between 2 and 100 characters.")
+                    continue
+                cur.execute("""
+                    SELECT id FROM users
+                    WHERE organization_id = %s
+                      AND role = 'SITE_MANAGER'
+                      AND LOWER(TRIM(location)) = %s
+                      AND is_deleted IS NOT TRUE;
+                """, (org_id, target_loc.lower()))
+                if cur.fetchone():
+                    errors.append(f'A Site Manager with location "{target_loc}" already exists for this organisation.')
+                    continue
+
+                cur.execute("""
+                    SELECT id FROM user_invitations
+                    WHERE organization_id = %s
+                      AND role = 'SITE_MANAGER'
+                      AND LOWER(TRIM(location)) = %s
+                      AND status = 'PENDING'
+                      AND expires_at > CURRENT_TIMESTAMP;
+                """, (org_id, target_loc.lower()))
+                if cur.fetchone():
+                    errors.append(f'A Site Manager invitation for location "{target_loc}" is already pending for this organisation.')
+                    continue
+
+            # Validation for Operator
+            elif item.role == "OPERATOR":
+                if target_sm_id:
+                    cur.execute("""
+                        SELECT id, first_name, last_name, location, site_id
+                        FROM users
+                        WHERE id = %s AND organization_id = %s AND role = 'SITE_MANAGER' AND is_deleted IS NOT TRUE;
+                    """, (target_sm_id, org_id))
+                    sm_row = cur.fetchone()
+                    if sm_row:
+                        if not target_loc and sm_row[3]:
+                            target_loc = sm_row[3]
+                        if not site_target_id and sm_row[4]:
+                            site_target_id = str(sm_row[4])
+                    else:
+                        cur.execute("""
+                            SELECT id, email, location, site_id
+                            FROM user_invitations
+                            WHERE id = %s AND organization_id = %s AND role = 'SITE_MANAGER' AND status = 'PENDING';
+                        """, (target_sm_id, org_id))
+                        inv_sm_row = cur.fetchone()
+                        if inv_sm_row:
+                            if not target_loc and inv_sm_row[2]:
+                                target_loc = inv_sm_row[2]
+                            if not site_target_id and inv_sm_row[3]:
+                                site_target_id = str(inv_sm_row[3])
+                            target_sm_id = None
+                        elif not target_loc:
+                            errors.append(f"Selected Site Manager is invalid for Operator ({clean_email}).")
+                            continue
+                elif target_loc:
+                    pass
+                else:
+                    errors.append(f"An assigned Site Manager (with location) is required when inviting an Operator ({clean_email}).")
+                    continue
+
             if site_target_id:
                 cur.execute("SELECT id FROM sites WHERE id = %s AND organization_id = %s;", (site_target_id, org_id))
                 if not cur.fetchone():
-                    errors.append(f"Specified site is invalid for {clean_email}.")
-                    continue
+                    site_target_id = None
 
             cur.execute("""
                 INSERT INTO user_invitations (
-                    organization_id, site_id, email, role, token, status, expires_at, created_by
+                    organization_id, site_id, email, role, token, status, expires_at, created_by, location, site_manager_id
                 ) VALUES (
-                    %s, %s, %s, %s, %s, 'PENDING', %s, %s
-                ) RETURNING id, organization_id, site_id, email, role, token, status, expires_at, created_at;
+                    %s, %s, %s, %s, %s, 'PENDING', %s, %s, %s, %s
+                ) RETURNING id, organization_id, site_id, email, role, token, status, expires_at, created_at, location, site_manager_id;
             """, (
                 org_id,
                 site_target_id,
@@ -160,7 +229,9 @@ def send_organization_invitations(
                 item.role,
                 token,
                 expires_at,
-                current_user.get("id")
+                current_user.get("id"),
+                target_loc or None,
+                target_sm_id or None
             ))
             row = cur.fetchone()
             cols = [desc[0] for desc in cur.description]
@@ -169,6 +240,8 @@ def send_organization_invitations(
             invite_dict["organization_id"] = str(invite_dict["organization_id"])
             if invite_dict.get("site_id"):
                 invite_dict["site_id"] = str(invite_dict["site_id"])
+            if invite_dict.get("site_manager_id"):
+                invite_dict["site_manager_id"] = str(invite_dict["site_manager_id"])
             invite_dict["token"] = token
 
             email_res = send_user_invitation_email(
@@ -211,7 +284,7 @@ def get_organization_invitations(
 
     with get_db_cursor() as cur:
         cur.execute("""
-            SELECT i.id, i.organization_id, i.site_id, s.site_name, i.email, i.role, i.status, i.expires_at, i.created_at, i.accepted_at
+            SELECT i.id, i.organization_id, i.site_id, s.site_name, i.email, i.role, i.status, i.expires_at, i.created_at, i.accepted_at, i.location, i.site_manager_id
             FROM user_invitations i
             LEFT JOIN sites s ON i.site_id = s.id
             WHERE i.organization_id = %s
@@ -226,6 +299,8 @@ def get_organization_invitations(
             d["organization_id"] = str(d["organization_id"])
             if d.get("site_id"):
                 d["site_id"] = str(d["site_id"])
+            if d.get("site_manager_id"):
+                d["site_manager_id"] = str(d["site_manager_id"])
             out.append(d)
         return out
 
@@ -238,7 +313,7 @@ def verify_invitation(token: str = Query(..., description="Invitation token")):
     with get_db_cursor() as cur:
         cur.execute("""
             SELECT i.id, i.organization_id, i.site_id, s.site_name, i.email, i.role, i.status, i.expires_at,
-                   o.company_name, o.organisation_code
+                   o.company_name, o.organisation_code, i.location
             FROM user_invitations i
             JOIN organizations o ON i.organization_id = o.id
             LEFT JOIN sites s ON i.site_id = s.id
@@ -248,7 +323,7 @@ def verify_invitation(token: str = Query(..., description="Invitation token")):
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invitation link or token not found.")
 
-        invite_id, org_id, site_id, site_name, email, role, status_val, expires_at, company_name, client_code = row
+        invite_id, org_id, site_id, site_name, email, role, status_val, expires_at, company_name, client_code, loc_val = row
 
         if status_val == "ACCEPTED":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invitation has already been accepted. Please sign in.")
@@ -269,7 +344,8 @@ def verify_invitation(token: str = Query(..., description="Invitation token")):
             site_name=site_name,
             company_name=company_name,
             client_code=client_code,
-            organisation_code=client_code
+            organisation_code=client_code,
+            location=loc_val
         )
 
 # Accept invitation, create password hash, and establish session
@@ -290,7 +366,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
     with get_db_cursor(commit=True) as cur:
         cur.execute("""
             SELECT i.id, i.organization_id, i.site_id, i.email, i.role, i.status, i.expires_at,
-                   o.company_name, o.organisation_code, i.invited_by
+                   o.company_name, o.organisation_code, i.created_by, i.location, i.site_manager_id
             FROM user_invitations i
             JOIN organizations o ON i.organization_id = o.id
             WHERE i.token = %s;
@@ -299,7 +375,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invitation token.")
 
-        invite_id, org_id, site_id, email, role, status_val, expires_at, company_name, client_code, invited_by = row
+        invite_id, org_id, site_id, email, role, status_val, expires_at, company_name, client_code, inviter_id, invite_loc, invite_sm_id = row
 
         if status_val == "ACCEPTED":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invitation has already been accepted.")
@@ -332,6 +408,12 @@ def accept_invitation(payload: AcceptInvitationRequest):
         pw_hash = get_password_hash(password)
         phone = payload.phone_number.strip() if payload.phone_number else None
 
+        valid_inviter_id = None
+        if inviter_id:
+            cur.execute("SELECT id FROM users WHERE id = %s;", (inviter_id,))
+            if cur.fetchone():
+                valid_inviter_id = inviter_id
+
         cur.execute("SELECT id FROM users WHERE LOWER(email) = %s;", (email.lower(),))
         existing_user = cur.fetchone()
 
@@ -346,21 +428,22 @@ def accept_invitation(payload: AcceptInvitationRequest):
                     last_name = %s,
                     role = %s,
                     phone_number = COALESCE(%s, phone_number),
+                    location = COALESCE(%s, location),
                     is_active = TRUE,
                     updated_by = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-                RETURNING id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at;
-            """, (org_id, site_id, pw_hash, first_name, last_name, role, phone, invited_by, user_id))
+                RETURNING id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at, location, token_version;
+            """, (org_id, site_id, pw_hash, first_name, last_name, role, phone, invite_loc, valid_inviter_id, user_id))
         else:
             cur.execute("""
                 INSERT INTO users (
-                    organization_id, site_id, email, password_hash, first_name, last_name, role, phone_number, is_active, created_by
+                    organization_id, site_id, email, password_hash, first_name, last_name, role, phone_number, is_active, location, created_by
                 ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s
                 )
-                RETURNING id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at;
-            """, (org_id, site_id, email.lower(), pw_hash, first_name, last_name, role, phone, invited_by))
+                RETURNING id, organization_id, site_id, email, first_name, last_name, role, phone_number, is_active, last_login_at, created_at, updated_at, location, token_version;
+            """, (org_id, site_id, email.lower(), pw_hash, first_name, last_name, role, phone, invite_loc, valid_inviter_id))
 
         user_row = cur.fetchone()
         cols = [desc[0] for desc in cur.description]
@@ -379,6 +462,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
             WHERE id = %s;
         """, (invite_id,))
 
+        effective_tv = user_dict.get("token_version", 1) or 1
         auth_token = create_access_token({
             "id": user_dict["id"],
             "sub": user_dict["id"],
@@ -389,7 +473,7 @@ def accept_invitation(payload: AcceptInvitationRequest):
             "company_name": company_name,
             "client_code": client_code,
             "organisation_code": client_code,
-            "token_version": user_dict.get("token_version", 1)
+            "token_version": effective_tv
         })
 
         return LoginResponse(

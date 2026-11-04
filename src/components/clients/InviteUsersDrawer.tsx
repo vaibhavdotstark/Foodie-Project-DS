@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { invitationsApi, sitesApi } from '../../services/api';
-import type { Organization, User, UserRole, UserInvitation, Site } from '../../types';
+import { invitationsApi, usersApi } from '../../services/api';
+import type { Organization, User, UserRole, UserInvitation } from '../../types';
 
 interface InviteRow {
   email: string;
   role: UserRole;
+  location?: string;
+  site_manager_id?: string;
   site_id?: string;
 }
 
@@ -28,12 +30,20 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
   const { user: currentUser } = useAuth();
   const isOem = currentUser?.role === 'OEM_MANAGER';
 
-  // Client pending invitations & physical sites
   const [pendingInvites, setPendingInvites] = useState<UserInvitation[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
+  const [fetchedUsers, setFetchedUsers] = useState<User[]>([]);
 
-  // Existing owner status
-  const activeOwner = existingUsers.find(
+  const allKnownUsers = useMemo(() => {
+    const combined = [...existingUsers];
+    for (const u of fetchedUsers) {
+      if (!combined.some((item) => item.id === u.id)) {
+        combined.push(u);
+      }
+    }
+    return combined;
+  }, [existingUsers, fetchedUsers]);
+
+  const activeOwner = allKnownUsers.find(
     (u) => (u.role === 'ORGANISATION_OWNER' || u.role === 'SITE_ADMIN') && u.is_active
   );
   const pendingOwnerInvite = pendingInvites.find(
@@ -42,14 +52,57 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
   const hasExistingOwner = Boolean(activeOwner || pendingOwnerInvite);
   const existingOwnerEmail = activeOwner?.email || pendingOwnerInvite?.email;
 
-  // Invitee rows state
+  // List of active and invited site managers with location
+  const siteManagerOptions = useMemo(() => {
+    const options: { id: string; label: string; location: string; site_id?: string }[] = [];
+    const seenIds = new Set<string>();
+
+    for (const u of allKnownUsers) {
+      if (
+        u.role === 'SITE_MANAGER' &&
+        u.is_active &&
+        (!client?.id || u.organization_id === client.id)
+      ) {
+        const loc = (u.location || u.site_name || '').trim();
+        if (!loc) continue;
+        seenIds.add(u.id);
+        const fullName = `${u.first_name} ${u.last_name}`.trim() || u.email;
+        options.push({
+          id: u.id,
+          label: `${fullName} (${loc})`,
+          location: loc,
+          site_id: u.site_id || undefined,
+        });
+      }
+    }
+
+    for (const inv of pendingInvites) {
+      if (inv.role === 'SITE_MANAGER' && inv.status === 'PENDING' && !seenIds.has(inv.id)) {
+        const loc = (inv.location || inv.site_name || '').trim();
+        if (!loc) continue;
+        options.push({
+          id: inv.id,
+          label: `${inv.email} (${loc})`,
+          location: loc,
+          site_id: inv.site_id || undefined,
+        });
+      }
+    }
+
+    return options;
+  }, [allKnownUsers, pendingInvites, client?.id]);
+
   const [rows, setRows] = useState<InviteRow[]>([
-    { email: '', role: isOem && !hasExistingOwner ? 'ORGANISATION_OWNER' : 'SITE_MANAGER' },
+    {
+      email: '',
+      role: isOem && !hasExistingOwner ? 'ORGANISATION_OWNER' : 'SITE_MANAGER',
+      location: '',
+      site_manager_id: '',
+    },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load client invitations and sites when drawer opens
   useEffect(() => {
     if (isOpen && client?.id) {
       invitationsApi
@@ -59,17 +112,27 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
         })
         .catch(() => setPendingInvites([]));
 
-      sitesApi
-        .getAll(client.id)
-        .then(setSites)
-        .catch(() => setSites([]));
+      usersApi
+        .getAll()
+        .then((data) => {
+          setFetchedUsers(data.filter((u) => u.organization_id === client.id));
+        })
+        .catch(() => setFetchedUsers([]));
     }
   }, [isOpen, client?.id]);
 
   useEffect(() => {
     if (isOpen) {
-      const defaultRole: UserRole = isOem && !hasExistingOwner ? 'ORGANISATION_OWNER' : 'SITE_MANAGER';
-      setRows([{ email: '', role: defaultRole }]);
+      const defaultRole: UserRole =
+        isOem && !hasExistingOwner ? 'ORGANISATION_OWNER' : 'SITE_MANAGER';
+      setRows([
+        {
+          email: '',
+          role: defaultRole,
+          location: '',
+          site_manager_id: '',
+        },
+      ]);
       setError(null);
       setIsSubmitting(false);
     }
@@ -87,9 +150,16 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
 
   if (!isOpen || !client) return null;
 
-  // Dynamic invitee rows
   const handleAddRow = () => {
-    setRows((prev) => [...prev, { email: '', role: 'OPERATOR' }]);
+    setRows((prev) => [
+      ...prev,
+      {
+        email: '',
+        role: 'SITE_MANAGER',
+        location: '',
+        site_manager_id: '',
+      },
+    ]);
   };
 
   const handleRemoveRow = (index: number) => {
@@ -101,52 +171,115 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
     setRows((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
+
+      if (field === 'role') {
+        if (value === 'ORGANISATION_OWNER') {
+          updated[index].location = '';
+          updated[index].site_manager_id = '';
+        } else if (value === 'SITE_MANAGER') {
+          updated[index].site_manager_id = '';
+        } else if (value === 'OPERATOR') {
+          if (siteManagerOptions.length === 1) {
+            const sm = siteManagerOptions[0];
+            updated[index].site_manager_id = sm.id;
+            updated[index].location = sm.location;
+            updated[index].site_id = sm.site_id;
+          }
+        }
+      }
+
+      if (field === 'site_manager_id') {
+        const selectedSm = siteManagerOptions.find((sm) => sm.id === value);
+        if (selectedSm) {
+          updated[index].location = selectedSm.location;
+          updated[index].site_id = selectedSm.site_id;
+        } else {
+          updated[index].location = '';
+          updated[index].site_id = undefined;
+        }
+      }
+
       return updated;
     });
   };
 
-  // Send invitations
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const validRows = rows.map((r) => ({
-      email: r.email.trim().toLowerCase(),
-      role: r.role,
-      site_id: (r.role === 'SITE_MANAGER' || r.role === 'OPERATOR') ? (r.site_id || undefined) : undefined,
-    }));
-
-    const emptyRow = validRows.find((r) => !r.email);
-    if (emptyRow) {
-      setError('Please provide an email address for each invitation.');
-      return;
-    }
-
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const invalidEmail = validRows.find((r) => !emailRegex.test(r.email));
-    if (invalidEmail) {
-      setError(`"${invalidEmail.email}" is not a valid email address.`);
-      return;
-    }
 
+    // Email validation & duplicate check
     const emailsSet = new Set<string>();
-    for (const r of validRows) {
-      if (emailsSet.has(r.email)) {
-        setError(`Email "${r.email}" is listed more than once.`);
+    const siteManagerLocationsSet = new Set<string>();
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const cleanEmail = row.email.trim().toLowerCase();
+
+      if (!cleanEmail) {
+        setError('Please enter an email address for each person.');
         return;
       }
-      emailsSet.add(r.email);
+
+      if (!emailRegex.test(cleanEmail)) {
+        setError(`"${row.email}" is not a valid email address.`);
+        return;
+      }
+
+      if (emailsSet.has(cleanEmail)) {
+        setError(`Email "${cleanEmail}" is listed more than once.`);
+        return;
+      }
+      emailsSet.add(cleanEmail);
+
+      // Site Manager location validations
+      if (row.role === 'SITE_MANAGER') {
+        const cleanLoc = (row.location || '').trim();
+        if (!cleanLoc) {
+          setError(`Please enter the site location for Site Manager (${cleanEmail}).`);
+          return;
+        }
+        if (cleanLoc.length < 2 || cleanLoc.length > 100) {
+          setError(`Site location for ${cleanEmail} must be between 2 and 100 characters.`);
+          return;
+        }
+
+        const normalizedLoc = cleanLoc.toLowerCase();
+        if (siteManagerLocationsSet.has(normalizedLoc)) {
+          setError(`Location "${cleanLoc}" is used more than once. Each Site Manager must have a unique location.`);
+          return;
+        }
+        siteManagerLocationsSet.add(normalizedLoc);
+
+        // Check against active and pending site manager locations
+        const alreadyExists = siteManagerOptions.some(
+          (sm) => sm.location.trim().toLowerCase() === normalizedLoc
+        );
+        if (alreadyExists) {
+          setError(`A Site Manager with location "${cleanLoc}" already exists or is pending for this organisation. Location must be unique.`);
+          return;
+        }
+      }
+
+      // Operator assignment validation
+      if (row.role === 'OPERATOR') {
+        if (!row.site_manager_id) {
+          setError(`Please select an assigned Site Manager (Location) for Operator (${cleanEmail}).`);
+          return;
+        }
+      }
     }
 
-    // Single Organisation Owner rules
-    const ownerInvites = validRows.filter((r) => r.role === 'ORGANISATION_OWNER');
+    // Organisation Owner rules
+    const ownerInvites = rows.filter((r) => r.role === 'ORGANISATION_OWNER');
     if (ownerInvites.length > 0 && !isOem) {
       setError('Only OEM Managers can invite an Organisation Owner.');
       return;
     }
 
     if (ownerInvites.length > 1) {
-      setError('Only one Organisation Owner can be invited for this organisation.');
+      setError('Only one Organisation Owner can be invited per organisation.');
       return;
     }
 
@@ -157,13 +290,21 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
       return;
     }
 
+    const payload = rows.map((r) => ({
+      email: r.email.trim().toLowerCase(),
+      role: r.role,
+      location: r.role === 'SITE_MANAGER' || r.role === 'OPERATOR' ? (r.location?.trim() || undefined) : undefined,
+      site_manager_id: r.role === 'OPERATOR' ? (r.site_manager_id || undefined) : undefined,
+      site_id: r.site_id || undefined,
+    }));
+
     setIsSubmitting(true);
     try {
-      const res = await invitationsApi.create(client.id, validRows);
+      const res = await invitationsApi.create(client.id, payload);
       onSuccess(res.invited_count);
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Failed to dispatch invitations. Please try again.');
+      setError(err?.message || 'Failed to send invitations. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -184,14 +325,14 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 pointer-events-none">
         <div className="w-screen max-w-xl bg-white shadow-2xl flex flex-col pointer-events-auto transform transition-transform duration-200 ease-in-out animate-in slide-in-from-right">
-          {/* Drawer header */}
+          {/* Header matching wireframe */}
           <div className="px-6 sm:px-8 py-5 border-b border-[#E5E7EB] flex items-start justify-between bg-white shrink-0">
             <div>
               <h2 className="text-xl font-bold text-[#111827] tracking-tight">
                 Invite users
               </h2>
               <p className="text-xs text-[#6B7280] mt-1">
-                Add the email address and role of each person you want to invite to {client.company_name}.
+                Add the email address and role of each person you want to invite.
               </p>
             </div>
             <button
@@ -204,7 +345,7 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
             </button>
           </div>
 
-          {/* Invitee rows form */}
+          {/* Form Content */}
           <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6">
             <form id="invite-users-form" onSubmit={handleSubmit} className="space-y-6">
               {error && (
@@ -224,83 +365,160 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
 
                 <div className="space-y-3.5">
                   {rows.map((row, idx) => (
-                    <div key={idx} className="flex items-end gap-2.5">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium text-[#374151] mb-1">
-                          Email address
-                        </label>
-                        <input
-                          type="email"
-                          value={row.email}
-                          onChange={(e) => handleChangeRow(idx, 'email', e.target.value)}
-                          placeholder="name@example.com"
-                          required
-                          disabled={isSubmitting}
-                          className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
-                        />
-                      </div>
-
-                      <div className="w-36 shrink-0">
-                        <label className="block text-xs font-medium text-[#374151] mb-1">
-                          Role
-                        </label>
-                        <select
-                          value={row.role}
-                          onChange={(e) => handleChangeRow(idx, 'role', e.target.value as UserRole)}
-                          disabled={isSubmitting}
-                          className="w-full bg-white border border-[#D1D5DB] rounded-lg px-2.5 py-2 text-xs font-medium text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all cursor-pointer"
-                        >
-                          {isOem && (
-                            <option
-                              value="ORGANISATION_OWNER"
-                              disabled={hasExistingOwner && row.role !== 'ORGANISATION_OWNER'}
-                            >
-                              Organisation Owner{hasExistingOwner ? ' (Assigned)' : ''}
-                            </option>
-                          )}
-                          <option value="SITE_MANAGER">Site Manager</option>
-                          <option value="OPERATOR">Operator</option>
-                        </select>
-                      </div>
-
-                      {sites.length > 0 && (row.role === 'SITE_MANAGER' || row.role === 'OPERATOR') && (
-                        <div className="w-36 shrink-0">
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-xl border border-[#E5E7EB] bg-white space-y-3 transition-colors hover:border-[#D1D5DB]"
+                    >
+                      {/* Main input row: Email address | Role | Trash */}
+                      <div className="flex items-end gap-2.5">
+                        <div className="flex-1">
                           <label className="block text-xs font-medium text-[#374151] mb-1">
-                            Site
+                            Email address
+                          </label>
+                          <input
+                            type="email"
+                            value={row.email}
+                            onChange={(e) => handleChangeRow(idx, 'email', e.target.value)}
+                            placeholder="name@example.com"
+                            required
+                            disabled={isSubmitting}
+                            className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
+                          />
+                        </div>
+
+                        <div className="w-44 shrink-0">
+                          <label className="block text-xs font-medium text-[#374151] mb-1">
+                            Role
                           </label>
                           <select
-                            value={row.site_id || ''}
-                            onChange={(e) => handleChangeRow(idx, 'site_id', e.target.value)}
+                            value={row.role}
+                            onChange={(e) => handleChangeRow(idx, 'role', e.target.value as UserRole)}
                             disabled={isSubmitting}
-                            className="w-full bg-white border border-[#D1D5DB] rounded-lg px-2.5 py-2 text-xs font-medium text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all cursor-pointer"
+                            className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3 py-2 text-xs font-medium text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all cursor-pointer"
                           >
-                            <option value="">All sites / Unassigned</option>
-                            {sites.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.site_name}
+                            {isOem && (
+                              <option
+                                value="ORGANISATION_OWNER"
+                                disabled={hasExistingOwner && row.role !== 'ORGANISATION_OWNER'}
+                              >
+                                Organisation Owner{hasExistingOwner ? ' (Assigned)' : ''}
                               </option>
-                            ))}
+                            )}
+                            <option value="SITE_MANAGER">Site Manager</option>
+                            <option value="OPERATOR">Operator</option>
                           </select>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(idx)}
+                          disabled={rows.length === 1 || isSubmitting}
+                          className={`p-2 rounded-lg border border-[#E5E7EB] transition-colors cursor-pointer mb-[1px] ${
+                            rows.length === 1
+                              ? 'opacity-30 cursor-not-allowed text-[#9CA3AF]'
+                              : 'text-[#6B7280] hover:text-[#E32032] hover:border-red-200 hover:bg-red-50'
+                          }`}
+                          title="Remove person"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Fields when Site Manager is selected */}
+                      {row.role === 'SITE_MANAGER' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#F3F4F6]">
+                          <div>
+                            <label className="block text-xs font-medium text-[#374151] mb-1">
+                              Organisation
+                            </label>
+                            <input
+                              type="text"
+                              value={client.company_name}
+                              disabled
+                              readOnly
+                              className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-3.5 py-1.5 text-xs font-semibold text-[#6B7280] cursor-not-allowed select-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-[#374151] mb-1">
+                              Site location <span className="text-[#E32032]">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={row.location || ''}
+                              onChange={(e) => handleChangeRow(idx, 'location', e.target.value)}
+                              placeholder="e.g. Melbourne Plant, 34-D Adelaide"
+                              required
+                              disabled={isSubmitting}
+                              className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3.5 py-1.5 text-xs text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all"
+                            />
+                          </div>
                         </div>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRow(idx)}
-                        disabled={rows.length === 1 || isSubmitting}
-                        className={`p-2 rounded-lg border border-[#E5E7EB] transition-colors cursor-pointer mb-[1px] ${
-                          rows.length === 1
-                            ? 'opacity-30 cursor-not-allowed text-[#9CA3AF]'
-                            : 'text-[#6B7280] hover:text-[#E32032] hover:border-red-200 hover:bg-red-50'
-                        }`}
-                        title="Remove person"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* Fields when Operator is selected */}
+                      {row.role === 'OPERATOR' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-[#F3F4F6]">
+                          <div>
+                            <label className="block text-xs font-medium text-[#374151] mb-1">
+                              Organisation
+                            </label>
+                            <input
+                              type="text"
+                              value={client.company_name}
+                              disabled
+                              readOnly
+                              className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-3.5 py-1.5 text-xs font-semibold text-[#6B7280] cursor-not-allowed select-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-[#374151] mb-1">
+                              Site Manager <span className="text-[#E32032]">*</span>
+                            </label>
+                            <select
+                              value={row.site_manager_id || ''}
+                              onChange={(e) => handleChangeRow(idx, 'site_manager_id', e.target.value)}
+                              required
+                              disabled={isSubmitting || siteManagerOptions.length === 0}
+                              className="w-full bg-white border border-[#D1D5DB] rounded-lg px-3 py-1.5 text-xs font-medium text-[#111827] focus:outline-none focus:ring-1 focus:ring-[#111827] focus:border-[#111827] transition-all cursor-pointer disabled:bg-[#F9FAFB] disabled:text-[#9CA3AF]"
+                            >
+                              <option value="">
+                                {siteManagerOptions.length > 0
+                                  ? 'Select Site Manager (Location)...'
+                                  : 'No Site Managers available'}
+                              </option>
+                              {siteManagerOptions.map((sm) => (
+                                <option key={sm.id} value={sm.id}>
+                                  {sm.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fields when Organisation Owner is selected */}
+                      {row.role === 'ORGANISATION_OWNER' && (
+                        <div className="pt-2 border-t border-[#F3F4F6]">
+                          <label className="block text-xs font-medium text-[#374151] mb-1">
+                            Organisation
+                          </label>
+                          <input
+                            type="text"
+                            value={client.company_name}
+                            disabled
+                            readOnly
+                            className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-3.5 py-1.5 text-xs font-semibold text-[#6B7280] cursor-not-allowed select-none"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
 
+                {/* Add another email button */}
                 <button
                   type="button"
                   onClick={handleAddRow}
@@ -312,16 +530,17 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
                 </button>
               </div>
 
+              {/* Information Callout */}
               <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-3.5 flex items-start gap-3">
                 <Mail className="w-4 h-4 text-[#1D4ED8] shrink-0 mt-0.5" />
                 <p className="text-xs text-[#1E40AF] leading-relaxed">
-                  Each person gets an email with a secure link to set their dashboard password. The invitation link expires in 7 days.
+                  Each person gets an email with a link to set their password. The link expires in 7 days.
                 </p>
               </div>
             </form>
           </div>
 
-          {/* Footer actions */}
+          {/* Footer Actions */}
           <div className="px-6 sm:px-8 py-4 border-t border-[#E5E7EB] bg-white flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
@@ -352,4 +571,3 @@ export const InviteUsersDrawer: React.FC<InviteUsersDrawerProps> = ({
     </div>
   );
 };
-

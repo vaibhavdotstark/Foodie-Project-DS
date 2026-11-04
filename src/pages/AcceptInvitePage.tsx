@@ -8,6 +8,7 @@ import {
   Loader2,
   Building2,
   Shield,
+  MapPin,
   ArrowRight,
 } from 'lucide-react';
 import { FoodieLogo } from '../components/common/FoodieLogo';
@@ -183,6 +184,17 @@ export const AcceptInvitePage: React.FC = () => {
                     {roleDisplayMap[inviteData.role] || inviteData.role}
                   </span>
                 </div>
+                {inviteData.location && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#6B7280] flex items-center gap-1.5 font-medium">
+                      <MapPin className="w-3.5 h-3.5 text-[#E32032]" />
+                      Site / Location
+                    </span>
+                    <span className="font-semibold text-[#111827]">
+                      {inviteData.location}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {submitError && (

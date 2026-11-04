@@ -11,7 +11,23 @@ import type {
   AcceptInvitationPayload,
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const getApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location) {
+    const { protocol, hostname } = window.location;
+    if (hostname === '127.0.0.1') {
+      return `${protocol}//127.0.0.1:5000/api`;
+    }
+    if (hostname === 'localhost') {
+      return `${protocol}//localhost:5000/api`;
+    }
+    if (hostname) {
+      return `${protocol}//${hostname}:5000/api`;
+    }
+  }
+  return 'http://127.0.0.1:5000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const TOKEN_KEY = 'foodie_jwt_token_v1';
 
 export const tokenStorage = {
@@ -31,10 +47,35 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const primaryUrl = `${API_BASE_URL}${endpoint}`;
+  let response: Response;
+
+  try {
+    response = await fetch(primaryUrl, {
+      ...options,
+      headers,
+    });
+  } catch (fetchErr: any) {
+    let fallbackUrl: string | null = null;
+    if (primaryUrl.includes('localhost:5000')) {
+      fallbackUrl = primaryUrl.replace('localhost:5000', '127.0.0.1:5000');
+    } else if (primaryUrl.includes('127.0.0.1:5000')) {
+      fallbackUrl = primaryUrl.replace('127.0.0.1:5000', 'localhost:5000');
+    }
+
+    if (fallbackUrl) {
+      try {
+        response = await fetch(fallbackUrl, {
+          ...options,
+          headers,
+        });
+      } catch {
+        throw fetchErr;
+      }
+    } else {
+      throw fetchErr;
+    }
+  }
 
   let data: any = null;
   try {
@@ -329,7 +370,7 @@ export const dashboardApi = {
 export const invitationsApi = {
   create: async (
     orgId: string,
-    invitations: { email: string; role: string }[]
+    invitations: { email: string; role: string; site_id?: string; location?: string; site_manager_id?: string }[]
   ): Promise<{ success: boolean; invited_count: number; invitations: any[]; errors?: string[] }> => {
     return await request(`/organizations/${orgId}/invitations`, {
       method: 'POST',

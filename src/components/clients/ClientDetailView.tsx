@@ -55,7 +55,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   onUserDeleted,
 }) => {
   const navigate = useNavigate();
-  const SHOW_INVITE_FEATURE = false; // Hidden for Sprint 1 demo
+  const SHOW_INVITE_FEATURE = true; // Enabled for Sprint 2
   const [activeTab, setActiveTab] = useState<'MACHINES' | 'USERS'>('MACHINES');
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [addUserDrawerOpen, setAddUserDrawerOpen] = useState(false);
@@ -591,7 +591,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
             <div>
               <span className="block text-xs text-[#6B7280]">Shipping address</span>
               <span className="block text-xs sm:text-sm font-semibold text-[#111827] mt-1">
-                {client.shipping_address || 'Same as billing'}
+                {client.shipping_address || '—'}
               </span>
             </div>
           </div>
@@ -659,13 +659,8 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
 
               <button
                 type="button"
-                disabled
-                onClick={() => {
-                  /* Assign machine workflow disabled for Sprint 1 demo */
-                  void onAssignMachine;
-                }}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] opacity-50 cursor-not-allowed text-white flex items-center gap-1.5 shadow-none self-start sm:self-auto"
-                title="Assign machine (Will be enabled in next sprint)"
+                onClick={onAssignMachine}
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#E32032] hover:bg-[#C1121F] text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Assign machine</span>
@@ -1000,7 +995,16 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
                               )}
                             </div>
                           </td>
-                          <td className="py-4 px-6 text-[#9CA3AF]">—</td>
+                          <td className="py-4 px-6 text-[#4B5563]">
+                            {inv.location ? (
+                              <div className="flex items-center gap-1.5 font-medium text-[#111827]">
+                                <MapPin className="w-3.5 h-3.5 text-[#E32032] shrink-0" />
+                                <span>{inv.location}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[#9CA3AF]">—</span>
+                            )}
+                          </td>
                           <td className="py-4 px-6">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />

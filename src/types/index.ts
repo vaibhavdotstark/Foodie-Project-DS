@@ -9,6 +9,8 @@ export interface InvitationItem {
   email: string;
   role: UserRole;
   site_id?: string;
+  location?: string;
+  site_manager_id?: string;
 }
 
 export interface UserInvitation {
@@ -23,6 +25,8 @@ export interface UserInvitation {
   created_at: string;
   accepted_at?: string | null;
   email_sent?: boolean;
+  location?: string;
+  site_manager_id?: string;
 }
 
 export interface VerifyInvitationData {
@@ -35,6 +39,7 @@ export interface VerifyInvitationData {
   company_name: string;
   client_code: string;
   organisation_code?: string;
+  location?: string;
 }
 
 export interface AcceptInvitationPayload {
