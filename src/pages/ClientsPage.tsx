@@ -102,6 +102,22 @@ export const ClientsPage: React.FC = () => {
     fetchData();
   }, [selectedClientIdFromUrl]);
 
+  // Reset detail and modal views to show the clients list when clicking Clients in left menu
+  useEffect(() => {
+    const handleResetView = () => {
+      setSelectedClient(null);
+      setEditingClient(null);
+      setIsAddClientOpen(false);
+      setIsAssignMachineOpen(false);
+      setDeletingClient(null);
+      setDeletingClients([]);
+      setSearchParams({});
+    };
+
+    window.addEventListener('foodie:reset-clients-view', handleResetView);
+    return () => window.removeEventListener('foodie:reset-clients-view', handleResetView);
+  }, [setSearchParams]);
+
   // Click outside listener for the row action menu
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

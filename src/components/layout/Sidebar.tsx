@@ -28,7 +28,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-[70px] sm:w-[84px] bg-white border-r border-[#E3E4E6] flex flex-col items-center justify-between py-3 sm:py-4 h-screen sticky top-0 flex-shrink-0 z-40 select-none">
+    <aside className="w-[70px] sm:w-[84px] bg-white border-r border-[#E3E4E6] flex flex-col items-center justify-between py-3 sm:py-4 h-screen sticky top-0 flex-shrink-0 z-[60] select-none">
       {/* Navigation Items (Stacked vertically with icons above labels) */}
       <nav className="flex flex-col items-center gap-3 w-full px-2 overflow-y-auto pt-1">
         {navItems.map((item) => {
@@ -38,6 +38,14 @@ export const Sidebar: React.FC = () => {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              onClick={() => {
+                if (item.to === '/clients') {
+                  window.dispatchEvent(new CustomEvent('foodie:reset-clients-view'));
+                }
+                if (item.to === '/machines') {
+                  window.dispatchEvent(new CustomEvent('foodie:reset-machines-view'));
+                }
+              }}
               className={({ isActive }) =>
                 `w-full flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-colors duration-150 relative cursor-pointer border ${
                   isActive

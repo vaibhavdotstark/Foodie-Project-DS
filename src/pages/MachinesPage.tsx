@@ -80,6 +80,19 @@ export const MachinesPage: React.FC = () => {
     fetchData();
   }, []);
 
+  // Reset drawer views to show the machines list when clicking Machines in left menu
+  useEffect(() => {
+    const handleResetView = () => {
+      setSelectedMachine(null);
+      setEditingMachine(null);
+      setIsAddMachineOpen(false);
+      setDeletingMachine(null);
+    };
+
+    window.addEventListener('foodie:reset-machines-view', handleResetView);
+    return () => window.removeEventListener('foodie:reset-machines-view', handleResetView);
+  }, []);
+
   useEffect(() => {
     const q = searchParams.get('search') || searchParams.get('serial') || searchParams.get('q');
     if (q) {
